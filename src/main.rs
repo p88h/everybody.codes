@@ -6,7 +6,7 @@ fn read_input(event: u32, quest: u32, part: u32) -> String {
 }
 
 fn main() {
-    let solutions = e2025();
+    let solutions = everybody_codes::e2025();
     for sol in solutions {
         let input1 = read_input(sol.event, sol.quest, 1);
         let input2 = read_input(sol.event, sol.quest, 2);
@@ -38,31 +38,3 @@ fn main() {
     }   
 }
 
-struct Solution {
-    event: u32,
-    quest: u32,
-    part1: fn(&str) -> String,
-    part2: fn(&str) -> String,
-    part3: fn(&str) -> String,
-}
-
-macro_rules! run {
-    ($event:tt $($quest:tt),*) => {
-        fn $event() -> Vec<Solution> {
-            vec![$({
-                use everybody_codes::$event::$quest::*;
-                Solution {
-                    event: stringify!($event)[1..].parse::<u32>().unwrap(),
-                    quest: stringify!($quest)[1..].parse::<u32>().unwrap(),
-                    part1: |notes: &str| part1(notes).to_string(),
-                    part2: |notes: &str| part2(notes).to_string(),
-                    part3: |notes: &str| part3(notes).to_string(),
-                }
-            },)*]
-        }
-    }
-}
-
-run!(e2025
-    q01, q02, q03, q04
-);
