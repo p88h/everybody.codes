@@ -37,27 +37,6 @@ pub fn cycle2(num: &Complex<i64>, times: i32) -> i32 {
     times
 }
 
-#[cfg(test)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-
-    #[test]
-    fn test_cycle2() {
-        assert_eq!(cycle2(&Complex::new(35630, -64880), 100), 100);
-        assert_eq!(cycle2(&Complex::new(35630, -64870), 100), 100);
-        assert_eq!(cycle2(&Complex::new(35640, -64860), 100), 100);
-        assert_eq!(cycle2(&Complex::new(36230, -64270), 100), 100);
-        assert_eq!(cycle2(&Complex::new(36250, -64270), 100), 100);
-
-        assert_eq!(cycle2(&Complex::new(35460, -64910), 100), 26);
-        assert_eq!(cycle2(&Complex::new(35470, -64910), 100), 27);
-        assert_eq!(cycle2(&Complex::new(35480, -64910), 100), 29);
-        assert_eq!(cycle2(&Complex::new(35680, -64850), 100), 94);
-        assert_eq!(cycle2(&Complex::new(35630, -64830), 100), 99);
-    }
-}
-
 pub fn part2(input: &str) -> String {
     let c = read_complex(input);
     let mut total = 0;
@@ -88,4 +67,40 @@ pub fn part3(input: &str) -> String {
         })
         .sum();
     format!("{}", total)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_part1() {
+        let input = "A=[25,9]";
+        assert_eq!(part1(input), "[357,862]");
+    }
+
+    #[test]
+    fn test_cycle2() {
+        assert_eq!(cycle2(&Complex::new(35630, -64880), 100), 100);
+        assert_eq!(cycle2(&Complex::new(35630, -64870), 100), 100);
+        assert_eq!(cycle2(&Complex::new(35640, -64860), 100), 100);
+        assert_eq!(cycle2(&Complex::new(36230, -64270), 100), 100);
+        assert_eq!(cycle2(&Complex::new(36250, -64270), 100), 100);
+
+        assert_eq!(cycle2(&Complex::new(35460, -64910), 100), 26);
+        assert_eq!(cycle2(&Complex::new(35470, -64910), 100), 27);
+        assert_eq!(cycle2(&Complex::new(35480, -64910), 100), 29);
+        assert_eq!(cycle2(&Complex::new(35680, -64850), 100), 94);
+        assert_eq!(cycle2(&Complex::new(35630, -64830), 100), 99);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = "A=[35300,-64910]";
+        assert_eq!(part2(input), "4076");
+    }
+    #[test]
+    fn test_part3() {
+        let input = "A=[35300,-64910]";
+        assert_eq!(part3(input), "406954");
+    }
 }

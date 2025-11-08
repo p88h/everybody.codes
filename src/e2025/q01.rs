@@ -59,3 +59,26 @@ pub fn part3(input: &str) -> String {
     }
     words[0].to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_part1() {
+        let input = "Vyrdax,Drakzyph,Fyrryn,Elarzris\n\nR3,L2,R3,L1";
+        assert_eq!(part1(input), "Fyrryn");
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = "Vyrdax,Drakzyph,Fyrryn,Elarzris\n\nR3,L2,R3,L1";
+        assert_eq!(part2(input), "Elarzris");
+    }
+
+    #[test]
+    fn test_part3() {
+        let input = "Vyrdax,Drakzyph,Fyrryn,Elarzris\n\nR3,L2,R3,L3";
+        assert_eq!(part3(input), "Drakzyph");
+    }
+}
