@@ -27,5 +27,5 @@ macro_rules! library {
 }
 
 library!(e2025
-    q01, q02, q03, q04
+    q01, q02, q03, q04, q05
 );
