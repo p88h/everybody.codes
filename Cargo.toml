@@ -7,3 +7,10 @@ edition = "2024"
 num-complex = "0.4.6"
 rayon = "1.11.0"
 wide = "0.8.1"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "events_bench"
+harness = false
