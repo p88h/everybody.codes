@@ -1,10 +1,9 @@
 fn parse_input(input: &str) -> Vec<Vec<i32>> {
-    input.lines().map(|s| {
-        s.to_string()
-            .split(' ')
-            .map(|s| s[2..].parse::<i32>().unwrap())
-            .collect::<Vec<i32>>()
-    }).collect::<Vec<Vec<i32>>>()
+    input.lines().map(|line| {
+        line.split_whitespace()
+        .map(|s| s[2..].parse::<i32>().unwrap())
+        .collect()
+    }).collect()
 }
 
 pub fn part1(input: &str) -> String {
