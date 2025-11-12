@@ -26,6 +26,7 @@ pub fn part3(input: &str) -> String {
     let r: usize;
     let q: usize;
     let long_input: String;
+    // ensure input is at least 1000 chars long
     if input.len() < 10 {
         long_input = input.repeat(1000);
         r = 1;
