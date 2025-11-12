@@ -37,6 +37,6 @@ macro_rules! library {
 }
 
 library!(
-    s01 { q01, q02 },
+    s01 { q01, q02, q03 },
     e2025 { q01, q02, q03, q04, q05, q06, q07 }
 );
