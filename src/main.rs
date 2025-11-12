@@ -53,10 +53,11 @@ fn main() {
         let (r1, d1) = run_part(sol.event, sol.quest, 1, sol.part1);
         let (r2, d2) = run_part(sol.event, sol.quest, 2, sol.part2);
         let (r3, d3) = run_part(sol.event, sol.quest, 3, sol.part3);
-
-        println!(
-            "Event {} Quest {}: Part 1: {r1:16} {d1:8}  Part 2: {r2:16} {d2:8}  Part 3: {r3:16} {d3:8}",
-            sol.event, sol.quest
-        );
+        let label = if sol.event >= 1000 {
+            format!("Event {} Quest {:02}", sol.event, sol.quest)
+        } else {
+            format!("Story {:04} Quest {:02}", sol.event, sol.quest)
+        };
+        println!("{label} Part 1: {r1:16} {d1:8}  Part 2: {r2:16} {d2:8}  Part 3: {r3:16} {d3:8}");
     }
 }
