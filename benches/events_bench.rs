@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-fn read_input(event: u32, quest: u32, part: u32) -> String {
+fn read_input(event: i32, quest: i32, part: i32) -> String {
     let path = format!("input/everybody_codes_e{event}_q{quest:02}_p{part}.txt");
     std::fs::read_to_string(path).unwrap_or_default()
 }
