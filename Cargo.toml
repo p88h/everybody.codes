@@ -2,6 +2,7 @@
 name = "everybody_codes"
 version = "0.1.0"
 edition = "2024"
+default-run = "everybody_codes"
 
 [dependencies]
 num-complex = "0.4.6"
