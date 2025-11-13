@@ -12,15 +12,28 @@ pub fn part1(input: &str) -> String {
     total.to_string()
 }
 
+fn read_segments(input: &str) -> ([[u32; 256]; 256], Vec<i32>) {
+    let nums = input
+        .split(',')
+        .map(|s| s.parse::<i32>().unwrap() - 1)
+        .collect::<Vec<i32>>();
+    let mut raw: [[u32; 256]; 256] = [[0u32; 256]; 256];
+    // input is 1-indexed but we want 0-indexed for array access
+    for i in 1..nums.len() {
+        let a = nums[i].min(nums[i - 1]) as usize;
+        let b = nums[i].max(nums[i - 1]) as usize;
+        raw[a][b] += 1;
+    }
+    (raw, nums)
+}
+
 fn build_cache(raw: &[[u32; 256]; 256]) -> [[u32; 256]; 256] {
     let mut stage1 = [[0u32; 256]; 256];
     // compute stage1: number of segments ending at b with start >= a
     for b in 1..256 {
-        for a in (0..b).rev() {
-            stage1[a][b] = raw[a][b];
-            if a < 255 {
-                stage1[a][b] += stage1[a + 1][b]
-            }
+        stage1[b - 1][b] = raw[b - 1][b];
+        for a in (0..b - 1).rev() {
+            stage1[a][b] = raw[a][b] + stage1[a + 1][b];
         }
     }
     // compute stage2: number of segments starting at >= a and ending at <= b
@@ -40,39 +53,19 @@ fn count_intesections(cache: &[[u32; 256]; 256], raw: &[[u32; 256]; 256], a: usi
 }
 
 pub fn part2(input: &str) -> String {
-    let nums = input
-        .split(',')
-        .map(|s| s.parse::<i32>().unwrap())
-        .collect::<Vec<i32>>();
-    let mut raw: [[u32; 256]; 256] = [[0u32; 256]; 256];
-    // input is 1-indexed but we want 0-indexed for array access
-    for i in 1..nums.len() {
-        let a = nums[i].min(nums[i - 1]) as usize;
-        let b = nums[i].max(nums[i - 1]) as usize;
-        raw[a - 1][b - 1] += 1;
-    }
+    let (raw, nums) = read_segments(input);
     let cache = build_cache(&raw);
     let mut total = 0;
     for i in 1..nums.len() {
-        let a = nums[i].min(nums[i - 1]) as usize - 1;
-        let b = nums[i].max(nums[i - 1]) as usize - 1;
+        let a = nums[i].min(nums[i - 1]) as usize;
+        let b = nums[i].max(nums[i - 1]) as usize;
         total += count_intesections(&cache, &raw, a, b) - raw[a][b];
     }
     (total / 2).to_string()
 }
 
 pub fn part3(input: &str) -> String {
-    let nums = input
-        .split(',')
-        .map(|s| s.parse::<i32>().unwrap())
-        .collect::<Vec<i32>>();
-    let mut raw: [[u32; 256]; 256] = [[0u32; 256]; 256];
-    // input is 1-indexed but we want 0-indexed for array access
-    for i in 1..nums.len() {
-        let a = nums[i].min(nums[i - 1]) as usize;
-        let b = nums[i].max(nums[i - 1]) as usize;
-        raw[a - 1][b - 1] += 1;
-    }
+    let (raw, _nums) = read_segments(input);
     let cache = build_cache(&raw);
     let mut max = 0;
     for a in 0..255 {
