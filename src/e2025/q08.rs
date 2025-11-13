@@ -91,6 +91,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_part2() {
+        let input = "1,5,2,6,8,4,1,7,3,5,7,8,2";
+        assert_eq!(part2(input), "21");
+    }
+
+    #[test]
     fn test_part3() {
         let input = "1,5,2,6,8,4,1,7,3,6";
         assert_eq!(part3(input), "7");
@@ -100,17 +106,11 @@ mod tests {
     fn test_build_cache_single_segment() {
         let mut raw = [[0u32; 256]; 256];
         raw[5][10] = 3;
-
         let cache = build_cache(&raw);
-
-        // cache[a][b] should include raw[5][10] when interval (a,b) contains [5,10]
-        // Condition: a < x and y <= b, so interval must be (a, b] with 5 and 10 inside
         assert_eq!(cache[4][10], 3);
         assert_eq!(cache[4][11], 3);
         assert_eq!(cache[0][255], 3);
         assert_eq!(cache[5][11], 3);
-
-        // Should not include when interval doesn't contain [5,10]
         assert_eq!(cache[6][10], 0);
         assert_eq!(cache[5][9], 0);
     }
@@ -121,9 +121,7 @@ mod tests {
         raw[5][10] = 2;
         raw[7][9] = 1;
         raw[15][20] = 3;
-
         let cache = build_cache(&raw);
-
         assert_eq!(cache[4][11], 3);
         assert_eq!(cache[4][21], 6);
         assert_eq!(cache[14][21], 3);
@@ -135,9 +133,7 @@ mod tests {
         raw[10][20] = 1;
         raw[15][25] = 1;
         raw[12][18] = 1;
-
         let cache = build_cache(&raw);
-
         assert_eq!(cache[9][26], 3);
         assert_eq!(cache[11][19], 1);
         assert_eq!(cache[9][21], 2);
@@ -148,33 +144,22 @@ mod tests {
         let mut raw = [[0u32; 256]; 256];
         raw[1][2] = 5;
         raw[254][255] = 7;
-
         let cache = build_cache(&raw);
-
-        // Minimum boundary - segment [1,2]
-        assert_eq!(cache[0][2], 5); // (0,2] includes [1,2] since 0 < 1 and 2 <= 2
-        assert_eq!(cache[0][3], 5); // (0,3] includes [1,2] since 0 < 1 and 2 <= 3
-        assert_eq!(cache[1][2], 5); // (1,2] includes [1,2] since 1 <= 1 and 2 <= 2
-
-        // Maximum boundary - segment [254,255]
-        assert_eq!(cache[253][255], 7); // (253,255] includes [254,255]
+        assert_eq!(cache[0][2], 5);
+        assert_eq!(cache[0][3], 5);
+        assert_eq!(cache[1][2], 5);
+        assert_eq!(cache[253][255], 7);
         assert_eq!(cache[0][255], 12);
     }
 
     #[test]
     fn test_build_cache_accumulation() {
         let mut raw = [[0u32; 256]; 256];
-        // Create a chain of segments
         for i in 1..10 {
             raw[i][i + 1] = 1;
         }
-
         let cache = build_cache(&raw);
-
-        // cache[0][11] should contain all 9 segments
         assert_eq!(cache[0][11], 9);
-
-        // cache[5][11] should contain segments from 5 onwards
         assert_eq!(cache[5][11], 5);
     }
 
@@ -184,13 +169,8 @@ mod tests {
         raw[10][15] = 2;
         raw[10][20] = 3;
         raw[10][25] = 1;
-
         let cache = build_cache(&raw);
-
-        // cache[9][26] should include all
         assert_eq!(cache[9][26], 6);
-
-        // cache[9][16] should only include [10][15]
         assert_eq!(cache[9][16], 2);
     }
 }
