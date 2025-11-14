@@ -15,10 +15,7 @@ struct Fishbone {
 fn make_fishbone(input: &str) -> Fishbone {
     let pc = input.find(':').unwrap();
     let id = input[..pc].parse::<i32>().unwrap_or(0);
-    let parts = input[pc + 1..]
-        .split(',')
-        .filter_map(|s| s.parse::<i32>().ok())
-        .collect::<Vec<i32>>();
+    let parts = input[pc + 1..].split(',').filter_map(|s| s.parse::<i32>().ok()).collect::<Vec<i32>>();
     let mut fishbone = Fishbone {
         id,
         segments: vec![Segment::default()],
@@ -70,27 +67,17 @@ pub fn part1(input: &str) -> String {
 }
 
 pub fn part2(input: &str) -> String {
-    let scores = input
-        .lines()
-        .map(|line| make_fishbone(line).scores[0])
-        .collect::<Vec<i64>>();
+    let scores = input.lines().map(|line| make_fishbone(line).scores[0]).collect::<Vec<i64>>();
     let min = scores.iter().min().unwrap_or(&0);
     let max = scores.iter().max().unwrap_or(&0);
     format!("{}", max - min)
 }
 
 pub fn part3(input: &str) -> String {
-    let mut bones = input
-        .lines()
-        .map(|line| make_fishbone(line))
-        .collect::<Vec<Fishbone>>();
+    let mut bones = input.lines().map(|line| make_fishbone(line)).collect::<Vec<Fishbone>>();
     bones.sort();
     bones.reverse();
-    let result = bones
-        .iter()
-        .enumerate()
-        .map(|(i, bone)| bone.id * (i as i32 + 1))
-        .sum::<i32>();
+    let result = bones.iter().enumerate().map(|(i, bone)| bone.id * (i as i32 + 1)).sum::<i32>();
     format!("{:?}", result)
 }
 

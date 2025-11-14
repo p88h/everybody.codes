@@ -1,8 +1,5 @@
 pub fn sorted_input(input: &str) -> Vec<i32> {
-    let mut nums: Vec<i32> = input
-        .split(',')
-        .filter_map(|s| s.parse::<i32>().ok())
-        .collect();
+    let mut nums: Vec<i32> = input.split(',').filter_map(|s| s.parse::<i32>().ok()).collect();
     nums.sort();
     nums
 }

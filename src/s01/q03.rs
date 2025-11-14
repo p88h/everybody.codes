@@ -2,9 +2,7 @@ use crate::algo::math::*;
 
 fn parse_input(input: &str) -> Vec<Vec<i32>> {
     input.lines().map(|line| {
-        line.split_whitespace()
-        .map(|s| s[2..].parse::<i32>().unwrap())
-        .collect()
+        line.split_whitespace().map(|s| s[2..].parse::<i32>().unwrap()).collect()
     }).collect()
 }
 

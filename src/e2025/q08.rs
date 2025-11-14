@@ -1,8 +1,5 @@
 pub fn part1(input: &str) -> String {
-    let nums = input
-        .split(',')
-        .map(|s| s.parse::<i32>().unwrap())
-        .collect::<Vec<i32>>();
+    let nums = input.split(',').map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>();
     let mut total = 0;
     for i in 1..nums.len() {
         if (nums[i] - nums[i - 1]).abs() == 16 {
@@ -13,10 +10,7 @@ pub fn part1(input: &str) -> String {
 }
 
 fn read_segments(input: &str) -> ([[u32; 256]; 256], Vec<i32>) {
-    let nums = input
-        .split(',')
-        .map(|s| s.parse::<i32>().unwrap() - 1)
-        .collect::<Vec<i32>>();
+    let nums = input.split(',').map(|s| s.parse::<i32>().unwrap() - 1).collect::<Vec<i32>>();
     let mut raw: [[u32; 256]; 256] = [[0u32; 256]; 256];
     // input is 1-indexed but we want 0-indexed for array access
     for i in 1..nums.len() {

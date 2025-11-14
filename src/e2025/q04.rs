@@ -1,8 +1,5 @@
 pub fn part1(input: &str) -> String {
-    let gears = input
-        .lines()
-        .filter_map(|line| line.parse::<i32>().ok())
-        .collect::<Vec<i32>>();
+    let gears = input.lines().filter_map(|line| line.parse::<i32>().ok()).collect::<Vec<i32>>();
     // convert 2025 rotations into teeth count
     let d = 2025 * gears[0];
     // convert to full rotations of the last gear
@@ -11,10 +8,7 @@ pub fn part1(input: &str) -> String {
 }
 
 pub fn part2(input: &str) -> String {
-    let gears = input
-        .lines()
-        .filter_map(|line| line.parse::<i64>().ok())
-        .collect::<Vec<i64>>();
+    let gears = input.lines().filter_map(|line| line.parse::<i64>().ok()).collect::<Vec<i64>>();
     // convert 10000000000000 rotations into teeth count
     let d = 10000000000000 * gears[gears.len() - 1];
     // convert to full rotations of the first gear

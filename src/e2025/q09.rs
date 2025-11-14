@@ -17,17 +17,11 @@ fn encode(line: &str) -> [u128; 4] {
 }
 
 fn is_child(a: &[u128; 4], b: &[u128; 4], c: &[u128; 4]) -> bool {
-    a.iter()
-        .zip(b.iter())
-        .zip(c.iter())
-        .all(|((ai, bi), ci)| ((ai | bi) & ci) ^ ci == 0)
+    a.iter().zip(b.iter()).zip(c.iter()).all(|((ai, bi), ci)| ((ai | bi) & ci) ^ ci == 0)
 }
 
 fn pair_score(a: &[u128; 4], b: &[u128; 4]) -> u32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(ai, bi)| (ai & bi).count_ones())
-        .sum::<u32>()
+    a.iter().zip(b.iter()).map(|(ai, bi)| (ai & bi).count_ones()).sum::<u32>()
 }
 
 fn similarity(a: &[u128; 4], b: &[u128; 4], c: &[u128; 4]) -> u32 {
