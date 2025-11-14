@@ -1,3 +1,5 @@
+use crate::algo::math::*;
+
 fn parse_input(input: &str) -> Vec<Vec<i32>> {
     input.lines().map(|line| {
         line.split_whitespace()
@@ -16,30 +18,6 @@ pub fn part1(input: &str) -> String {
         result += dx + 100 * dy;
     }
     result.to_string()
-}
-
-fn inverse_modulus(mut a: i64, mut m: i64) -> i64 {
-    let m0 = m;
-    let (mut x0, mut x1) = (0, 1);
-    if m == 1 {
-        return 0;
-    }
-    while a > 1 {
-        let q = a / m;
-        (m, a) = (a % m, m);
-        (x0, x1) = (x1 - q * x0, x0);
-    }
-    if x1 < 0 { x1 + m0 } else { x1 }
-}
-
-fn compute_crt(remainders: &Vec<i64>, moduli: &Vec<i64>) -> i64 {
-    let prod: i64 = moduli.iter().product();
-    let mut result = 0;
-    for (i, &modulus) in moduli.iter().enumerate() {
-        let pp = prod / modulus;
-        result += remainders[i] * inverse_modulus(pp, modulus) * pp;
-    }
-    result % prod
 }
 
 pub fn part2(input: &str) -> String {

@@ -1,6 +1,8 @@
 pub mod algo {
-    pub mod union_find;
+   pub mod math;
+   pub mod union_find;
 }
+ 
 
 pub struct Solution {
     pub event: i32,
