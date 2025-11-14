@@ -26,12 +26,21 @@ pub fn part1(input: &str) -> String {
 
 pub fn cycle2(num: &Complex<i64>) -> i32 {
     let mut result = Complex::new(0, 0);
+    let mut old = result;
+    let mut period = 0;
     for d in 0..100 {
         result = result * result;
         result = result / 100000;
         result = result + num;
         if result.re.abs() > 1000000 || result.im.abs() > 1000000 {
             return d;
+        }
+        if result == old {
+            return 100;
+        }
+        period += 1;
+        if period == 10 {
+            old = result;
         }
     }
     100
@@ -50,42 +59,6 @@ pub fn part2(input: &str) -> String {
     }
     format!("{}", total)
 }
-
-/**
-  // An optimized version of part3 using caching and step refinement - not really much faster though
-  // This would be nice if some imprecision was allowed
-fn part3_exp(input: &str) -> String {
-    let c = read_complex(input);
-    let total : usize = (0..1001)
-        .into_par_iter()
-        .map(|x| {
-            let mut local_total = 0;
-            let mut cache: Vec<usize> = vec![0; 1001]; // Cache to store computed cycle2 values
-            let mut step = 8;
-            while step > 0 {
-                for y in (0..1001).step_by(step) {
-                    if cache[y] == 0 {
-                        if step == 8 || cache[y - step] + cache[y + step] > 61 {
-                            let test_c = Complex::new(c.re + x, c.im + y as i64);
-                            let cycle = cycle2(&test_c);
-                            cache[y] = cycle as usize;
-                        } else {
-                            cache[y] = cache[y - step].max(cache[y + step]);
-                        }
-                        if cache[y] == 100 {
-                            local_total += 1;
-                        }
-                    }
-                }
-                // Refine the step size for the next iteration
-                step /= 2;
-            }
-            local_total
-        })
-        .sum();
-    format!("{}", total)
-}
-*/
 
 pub fn part3(input: &str) -> String {
     let c = read_complex(input);
