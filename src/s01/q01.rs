@@ -1,7 +1,21 @@
-use num_complex::Complex;
 use rayon::prelude::*;
 
-fn eni(base: u64, exp: u64, modulus: u64, tail: usize) -> Complex<u128> {
+struct Pair {
+    val: u128,
+    sum: u128,
+}
+
+impl std::ops::Add for Pair {
+    type Output = Pair;
+    fn add(self, other: Pair) -> Pair {
+        Pair {
+            val: self.val + other.val,
+            sum: self.sum + other.sum,
+        }
+    }
+}
+
+fn eni(base: u64, exp: u64, modulus: u64, tail: usize) -> Pair {
     let mut r = 1u64;
     let mut v: Vec<u64> = Vec::new();
     let mut p: usize = 0;
@@ -26,7 +40,7 @@ fn eni(base: u64, exp: u64, modulus: u64, tail: usize) -> Complex<u128> {
         let digits = if x == 0 { 10 } else { x.ilog10() + 1 };
         acc * 10u64.pow(digits) + x
     });
-    Complex::new(z as u128, tot_sum as u128)
+    Pair { val: z as u128, sum: tot_sum as u128 }
 }
 
 #[cfg(test)]
@@ -34,31 +48,31 @@ mod tests {
     use super::*;
     #[test]
     fn test_eni() {
-        assert_eq!(eni(4, 3, 11, 0).re, 954);
-        assert_eq!(eni(6, 8, 14, 0).re, 86868686);
-        assert_eq!(eni(8, 6, 16, 0).re, 8);
-        assert_eq!(eni(8580, 219136221, 54, 5).re, 0);
-        assert_eq!(eni(2, 7, 5, 1).im, 19);
-        assert_eq!(eni(3, 8, 16, 1).im, 48);
-        assert_eq!(eni(4, 3000, 110, 1).im, 132000);
-        assert_eq!(eni(8, 16000, 160, 1).im, 1279880);
+        assert_eq!(eni(4, 3, 11, 0).val, 954);
+        assert_eq!(eni(6, 8, 14, 0).val, 86868686);
+        assert_eq!(eni(8, 6, 16, 0).val, 8);
+        assert_eq!(eni(8580, 219136221, 54, 5).val, 0);
+        assert_eq!(eni(2, 7, 5, 1).sum, 19);
+        assert_eq!(eni(3, 8, 16, 1).sum, 48);
+        assert_eq!(eni(4, 3000, 110, 1).sum, 132000);
+        assert_eq!(eni(8, 16000, 160, 1).sum, 1279880);
     }
 }
 
-pub fn compute(line: &str, tail: usize) -> Complex<u128> {
+fn compute(line: &str, tail: usize) -> Pair {
     let ps: Vec<u64> = line.split(' ').map(|s| s[2..].parse::<u64>().unwrap()).collect();
     let (a, b, c, x, y, z, m) = (ps[0], ps[1], ps[2], ps[3], ps[4], ps[5], ps[6]);
     eni(a, x, m, tail) + eni(b, y, m, tail) + eni(c, z, m, tail)
 }
 
 pub fn part1(input: &str) -> String {
-    input.lines().map(|line| compute(line, 0).re).max().unwrap().to_string()
+    input.lines().map(|line| compute(line, 0).val).max().unwrap().to_string()
 }
 
 pub fn part2(input: &str) -> String {
-    input.lines().map(|line| compute(line, 5).re).max().unwrap().to_string()
+    input.lines().map(|line| compute(line, 5).val).max().unwrap().to_string()
 }
 
 pub fn part3(input: &str) -> String {
-    input.par_lines().map(|line| compute(line, 1).im).max().unwrap().to_string()
+    input.par_lines().map(|line| compute(line, 1).sum).max().unwrap().to_string()
 }
