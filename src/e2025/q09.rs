@@ -1,57 +1,57 @@
-use rayon::prelude::*;
-
-fn similarity(a: &[u8], b: &[u8], c: &[u8]) -> u32 {
-    let (mut A, mut B) = (0u32, 0u32);
-    for i in 0..a.len() {
-        if a[i] == c[i] {
-            A += 1;
-        }
-        if b[i] == c[i] {
-            B += 1;
-        }
+fn encode(line: &str) -> [u128; 4] {
+    let b = line.split(':').nth(1).unwrap().as_bytes();
+    let mut v = [0u128; 4];
+    for i in 0..128 {
+        let bc = match b[i] {
+            b'A' => 1,
+            b'C' => 2,
+            b'G' => 4,
+            b'T' => 8,
+            _ => 0,
+        };
+        v[i / 32] |= bc << ((i % 32) * 4);
     }
-    A * B
+    v
+}
+
+fn is_child(a: &[u128; 4], b: &[u128; 4], c: &[u128; 4]) -> bool {
+    a.iter()
+        .zip(b.iter())
+        .zip(c.iter())
+        .all(|((ai, bi), ci)| ((ai | bi) & ci) ^ ci == 0)
+}
+
+fn pair_score(a: &[u128; 4], b: &[u128; 4]) -> u32 {
+    a.iter()
+        .zip(b.iter())
+        .map(|(ai, bi)| (ai & bi).count_ones())
+        .sum::<u32>()
+}
+
+fn similarity(a: &[u128; 4], b: &[u128; 4], c: &[u128; 4]) -> u32 {
+    pair_score(a, c) * pair_score(b, c)
 }
 
 pub fn part1(input: &str) -> String {
     let mut lines = input.lines();
-    let a = lines.next().unwrap()[2..].as_bytes();
-    let b = lines.next().unwrap()[2..].as_bytes();
-    let c = lines.next().unwrap()[2..].as_bytes();
-    similarity(a, b, c).to_string()
-}
-
-fn maybe_child(a: &[u8], b: &[u8], t: usize) -> bool {
-    let mut same = 0;
-    for i in 0..a.len() {
-        if a[i] == b[i] {
-            same += 1;
-        }
+    let a = encode(lines.next().unwrap());
+    let b = encode(lines.next().unwrap());
+    let c = encode(lines.next().unwrap());
+    if is_child(&a, &b, &c) {
+        similarity(&a, &b, &c).to_string()
+    } else if is_child(&c, &b, &a) {
+        similarity(&c, &b, &a).to_string()
+    } else if is_child(&a, &c, &b) {
+        similarity(&a, &c, &b).to_string()
+    } else {
+        "0".to_string()
     }
-    same >= t
 }
 
-fn is_child(a: &[u8], b: &[u8], c: &[u8]) -> bool {
-    let mut l = 0;
-    let mut r = 0;
-    for i in 0..a.len() {
-        if a[i] != c[i] && b[i] != c[i] {
-            return false;
-        }
-        if a[i] == c[i] {
-            l += 1;
-        }
-        if b[i] == c[i] {
-            r += 1;
-        }
-    }
-    true
-}
-
-fn find_family(dna: &Vec<&[u8]>, i: usize) -> [usize; 3] {
+fn find_family(dna: &Vec<[u128; 4]>, i: usize) -> [usize; 3] {
     let mut maybe_parents = vec![];
     for j in 0..dna.len() {
-        if i != j && maybe_child(dna[j], dna[i], 60) {
+        if i != j && pair_score(&dna[j], &dna[i]) > 60 {
             maybe_parents.push(j);
         }
     }
@@ -60,7 +60,7 @@ fn find_family(dna: &Vec<&[u8]>, i: usize) -> [usize; 3] {
             let j = maybe_parents[a];
             let k = maybe_parents[b];
             if i != j && i != k {
-                if is_child(dna[j], dna[k], dna[i]) {
+                if is_child(&dna[j], &dna[k], &dna[i]) {
                     return [j, k, i];
                 }
             }
@@ -70,15 +70,12 @@ fn find_family(dna: &Vec<&[u8]>, i: usize) -> [usize; 3] {
 }
 
 pub fn part2(input: &str) -> String {
-    let dna = input
-        .lines()
-        .map(|line| line.split(':').nth(1).unwrap().as_bytes())
-        .collect::<Vec<&[u8]>>();
+    let dna = input.lines().map(encode).collect::<Vec<[u128; 4]>>();
     let mut total = 0;
     for i in 0..dna.len() {
         let f = find_family(&dna, i);
         if f[0] != i {
-            let s = similarity(dna[f[0]], dna[f[1]], dna[i]);
+            let s = similarity(&dna[f[0]], &dna[f[1]], &dna[i]);
             total += s;
         }
     }
@@ -145,17 +142,11 @@ impl UnionFind {
 }
 
 pub fn part3(input: &str) -> String {
-    let dna = input
-        .lines()
-        .map(|line| line.split(':').nth(1).unwrap().as_bytes())
-        .collect::<Vec<&[u8]>>();
+    let dna = input.lines().map(encode).collect::<Vec<[u128; 4]>>();
     let mut total = 0;
     let mut uf = UnionFind::new(dna.len());
 
-    let families: Vec<[usize; 3]> = (0..dna.len())
-        .into_par_iter()
-        .map(|i| find_family(&dna, i))
-        .collect();
+    let families: Vec<[usize; 3]> = (0..dna.len()).map(|i| find_family(&dna, i)).collect();
 
     for family in families {
         uf.union(family[0], family[2]);
