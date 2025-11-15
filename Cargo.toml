@@ -5,6 +5,8 @@ edition = "2024"
 default-run = "everybody_codes"
 
 [dependencies]
+hungarian = "1.1.1"
+itertools = "0.14.0"
 num-complex = "0.4.6"
 rayon = "1.11.0"
 wide = "0.8.1"
