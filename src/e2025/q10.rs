@@ -94,12 +94,12 @@ pub fn part2(input: &str) -> String {
     sheep.to_string()
 }
 
-fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u64, cr: usize, cc: usize, scnt: usize, 
-    cache: &mut HashMap<(u64, usize, usize), usize>) -> usize {
+fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u32, cr: usize, cc: usize, scnt: usize, 
+    cache: &mut HashMap<u32, usize>) -> usize {
     let ofs = vec![(-1,-2), (-2,-1), (-2,1), (-1,2), (1,2), (2,1), (2,-1), (1,-2)];
     // move one of the sheep if possible
     let mut tot = 0;
-    let cache_key = (spos, cr, cc);
+    let cache_key = (spos & 0xFFFFFF) | ((cr as u32) << 24) | ((cc as u32) << 28);
     if cache.contains_key(&cache_key) {
         return *cache.get(&cache_key).unwrap();
     }
@@ -107,8 +107,8 @@ fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u64, cr: usize, cc: usize, scnt: u
         return 1;
     }
     for i in 0..grid[0].len() {
-        let cs = (spos >> (i * 8)) & 0xFF;
-        if cs != 0xFF {
+        let cs = (spos >> (i * 3)) & 0x7;
+        if cs != 0x7 {
             let r = cs as usize;
             let c = i;
             if r == grid.len() - 1 || grid[r + 1][c] == b'@' {
@@ -117,31 +117,31 @@ fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u64, cr: usize, cc: usize, scnt: u
             }
             if (r + 1, c) != (cr, cc) || grid[r+1][c] == b'#' {
                 // move down
-                spos += 1 << (i * 8);
+                spos += 1 << (i * 3);
                 for &(dr,dc) in ofs.iter() {
                     let nr = cr as i32 + dr;
                     let nc = cc as i32 + dc;                    
                     if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
-                        if spos >> (nc * 8) & 0xFF == nr as u64 && grid[nr as usize][nc as usize] == b'.' {
-                            spos |= 0xFF << (nc * 8); // eaten
+                        if spos >> (nc * 3) & 7 == nr as u32 && grid[nr as usize][nc as usize] == b'.' {
+                            spos |= 0x7 << (nc * 3); // eaten
                             tot += explore(grid, spos, nr as usize, nc as usize, scnt - 1, cache);
-                            spos &= !(0xFF << (nc * 8)); // backtrack
-                            spos |= (nr as u64) << (nc * 8);
+                            spos &= !(0x7 << (nc * 3)); // backtrack
+                            spos |= (nr as u32) << (nc * 3);
                         } else {
                             tot += explore(grid, spos, nr as usize, nc as usize, scnt, cache);
                         }
                     }
                 }
-                spos -= 1 << (i * 8);
+                spos -= 1 << (i * 3);
             } else if scnt == 1 {
                 for &(dr,dc) in ofs.iter() {
                     let nr = cr as i32 + dr;
                     let nc = cc as i32 + dc;                    
                     if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
-                        if spos >> (nc * 8) == nr as u64 && grid[nr as usize][nc as usize] == b'.' {
-                            spos |= 0xFF << (nc * 8); // eaten
+                        if spos >> (nc * 3) & 0x7 == nr as u32 && grid[nr as usize][nc as usize] == b'.' {
+                            spos |= 0x7 << (nc * 3); // eaten
                             tot += explore(grid, spos, nr as usize, nc as usize, scnt - 1, cache);
-                            spos &= !(0xFF << (nc * 8)); // backtrack                                                    
+                            spos &= !(0x7 << (nc * 3)); // backtrack                                                    
                         } else {
                             tot += explore(grid, spos, nr as usize, nc as usize, scnt, cache);
                         }
@@ -157,7 +157,7 @@ fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u64, cr: usize, cc: usize, scnt: u
 
 pub fn part3(input: &str) -> String {
     let mut grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
-    let mut spos = !0u64;
+    let mut spos = !0u32;
     let dpos = find_dragon(&mut grid);
     let mut scnt = 0;
     for i in 0..grid[0].len() {
@@ -168,7 +168,7 @@ pub fn part3(input: &str) -> String {
             }
         }
         if grid[0][i] == b'S' {
-            spos &= !(0xFF << (i * 8));
+            spos &= !(0x7 << (i * 3));
             scnt += 1;
             grid[0][i] = b'.';
         }
