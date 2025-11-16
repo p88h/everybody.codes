@@ -116,7 +116,6 @@ fn precompute_dragon_moves(grid: &mut Vec<Vec<u8>>) -> Vec<Vec<usize>> {
 
 fn explore(grid: &mut Vec<Vec<u8>>, spos: u32, di: usize, moves: &Vec<Vec<usize>>, scnt: usize, 
     cache: &mut HashMap<u32, usize>) -> usize {
-    // move one of the sheep if possible
     let mut tot = 0;
     let cache_key = (spos & 0xFFFFFF) | ((di as u32) << 24);
     if cache.contains_key(&cache_key) {
@@ -125,24 +124,25 @@ fn explore(grid: &mut Vec<Vec<u8>>, spos: u32, di: usize, moves: &Vec<Vec<usize>
     if scnt == 0 {
         return 1;
     }
+    // try to move each of the sheep if possible
     for i in 0..grid[0].len() {
-        let cs = (spos >> (i * 3)) & 0x7;
-        if cs != 0x7 {
-            let r = cs as usize;
-            let c = i;
-            if r == grid.len() - 1 || grid[r + 1][c] == b'@' {
+        let r = ((spos >> (i * 3)) & 0x7) as usize;
+        if r != 0x7 {
+            if r == grid.len() - 1 || grid[r + 1][i] == b'@' {
                 // this sheep is safe
                 continue;
             }
             // move down if possible
-            let npos = if (r * 8 + c + 8) != di || grid[r+1][c] == b'#' { spos + (1 << (i * 3)) } else { spos };
+            let npos = if (r * 8 + i + 8) != di || grid[r+1][i] == b'#' { spos + (1 << (i * 3)) } else { spos };
             if npos == spos && scnt > 1 {
                 continue;
             }
+            // try all dragon moves from current dragon position
             for ndi in moves[di].iter() {
                 let nr = ndi / 8;
                 let nc = ndi % 8;                    
                 if npos >> (nc * 3) & 7 == nr as u32 && grid[nr][nc] == b'.' {
+                    // eat the sheep
                     tot += explore(grid, npos | (0x7 << (nc * 3)), *ndi, moves, scnt - 1, cache);
                 } else {
                     tot += explore(grid, npos, *ndi, moves, scnt, cache);
