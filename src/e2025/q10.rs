@@ -94,12 +94,31 @@ pub fn part2(input: &str) -> String {
     sheep.to_string()
 }
 
-fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u32, cr: usize, cc: usize, scnt: usize, 
-    cache: &mut HashMap<u32, usize>) -> usize {
+// map start position to all end positions
+fn precompute_dragon_moves(grid: &mut Vec<Vec<u8>>) -> Vec<Vec<usize>> {
+    let mut moves = vec![vec![]; 64];
     let ofs = vec![(-1,-2), (-2,-1), (-2,1), (-1,2), (1,2), (2,1), (2,-1), (1,-2)];
+    for r in 0..grid.len() {
+        for c in 0..grid[r].len() {
+            let idx = r * 8 + c;
+            for &(dr,dc) in ofs.iter() {
+                let nr = r as i32 + dr;
+                let nc = c as i32 + dc;
+                if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
+                    let nidx = nr as usize * 8 + nc as usize;
+                    moves[idx].push(nidx);
+                }
+            }
+        }
+    }
+    moves
+}
+
+fn explore(grid: &mut Vec<Vec<u8>>, spos: u32, di: usize, moves: &Vec<Vec<usize>>, scnt: usize, 
+    cache: &mut HashMap<u32, usize>) -> usize {
     // move one of the sheep if possible
     let mut tot = 0;
-    let cache_key = (spos & 0xFFFFFF) | ((cr as u32) << 24) | ((cc as u32) << 28);
+    let cache_key = (spos & 0xFFFFFF) | ((di as u32) << 24);
     if cache.contains_key(&cache_key) {
         return *cache.get(&cache_key).unwrap();
     }
@@ -115,37 +134,18 @@ fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u32, cr: usize, cc: usize, scnt: u
                 // this sheep is safe
                 continue;
             }
-            if (r + 1, c) != (cr, cc) || grid[r+1][c] == b'#' {
-                // move down
-                spos += 1 << (i * 3);
-                for &(dr,dc) in ofs.iter() {
-                    let nr = cr as i32 + dr;
-                    let nc = cc as i32 + dc;                    
-                    if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
-                        if spos >> (nc * 3) & 7 == nr as u32 && grid[nr as usize][nc as usize] == b'.' {
-                            spos |= 0x7 << (nc * 3); // eaten
-                            tot += explore(grid, spos, nr as usize, nc as usize, scnt - 1, cache);
-                            spos &= !(0x7 << (nc * 3)); // backtrack
-                            spos |= (nr as u32) << (nc * 3);
-                        } else {
-                            tot += explore(grid, spos, nr as usize, nc as usize, scnt, cache);
-                        }
-                    }
-                }
-                spos -= 1 << (i * 3);
-            } else if scnt == 1 {
-                for &(dr,dc) in ofs.iter() {
-                    let nr = cr as i32 + dr;
-                    let nc = cc as i32 + dc;                    
-                    if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
-                        if spos >> (nc * 3) & 0x7 == nr as u32 && grid[nr as usize][nc as usize] == b'.' {
-                            spos |= 0x7 << (nc * 3); // eaten
-                            tot += explore(grid, spos, nr as usize, nc as usize, scnt - 1, cache);
-                            spos &= !(0x7 << (nc * 3)); // backtrack                                                    
-                        } else {
-                            tot += explore(grid, spos, nr as usize, nc as usize, scnt, cache);
-                        }
-                    }
+            // move down if possible
+            let npos = if (r * 8 + c + 8) != di || grid[r+1][c] == b'#' { spos + (1 << (i * 3)) } else { spos };
+            if npos == spos && scnt > 1 {
+                continue;
+            }
+            for ndi in moves[di].iter() {
+                let nr = ndi / 8;
+                let nc = ndi % 8;                    
+                if npos >> (nc * 3) & 7 == nr as u32 && grid[nr][nc] == b'.' {
+                    tot += explore(grid, npos | (0x7 << (nc * 3)), *ndi, moves, scnt - 1, cache);
+                } else {
+                    tot += explore(grid, npos, *ndi, moves, scnt, cache);
                 }
             }
         }
@@ -154,27 +154,27 @@ fn explore(grid: &mut Vec<Vec<u8>>, mut spos: u32, cr: usize, cc: usize, scnt: u
     tot
 }
 
-
 pub fn part3(input: &str) -> String {
     let mut grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
-    let mut spos = !0u32;
     let dpos = find_dragon(&mut grid);
+    let mut spos = !0u32;
     let mut scnt = 0;
     for i in 0..grid[0].len() {
+        if grid[0][i] == b'S' {
+            spos &= !(0x7 << (i * 3));
+            scnt += 1;
+            grid[0][i] = b'.';
+        }
         for j in (0..grid.len()).rev() {
             // hideout at the bottom is basically safe zone
             if grid[j][i] == b'#' && (j == grid.len() - 1 || grid[j+1][i] == b'@') {
                 grid[j][i] = b'@';
             }
         }
-        if grid[0][i] == b'S' {
-            spos &= !(0x7 << (i * 3));
-            scnt += 1;
-            grid[0][i] = b'.';
-        }
     }
+    let moves = precompute_dragon_moves(&mut grid);
     let mut cache= HashMap::new();
-    explore(&mut grid, spos, dpos.0, dpos.1, scnt, &mut cache).to_string()
+    explore(&mut grid, spos, dpos.0 * 8 + dpos.1, &moves, scnt, &mut cache).to_string()
 }
 
 
