@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 
 fn bfs(grid: &Vec<Vec<u8>>, skip: &Vec<bool>, start: &Vec<(usize, usize)>) -> (Vec<bool>, usize) {
     let dirs = vec![(0, 1), (1, 0), (0, -1), (-1, 0)];
@@ -60,10 +60,10 @@ struct ClassNode {
 fn compute_class_graph(
     grid: &Vec<Vec<u8>>,
     start: &(usize, usize),
-    cache: &mut HashMap<(usize, usize), usize>,
+    cache: &mut Vec<Option<usize>>,
     graph: &mut Vec<ClassNode>,
 ) -> usize {
-    if let Some(&class) = cache.get(start) {
+    if let Some(class) = cache[start.0 * 256 + start.1] {
         return class;
     }
     let dirs = vec![(0, 1), (1, 0), (0, -1), (-1, 0)];
@@ -75,7 +75,7 @@ fn compute_class_graph(
         children: vec![],
         has_parent: false,
     });
-    cache.insert(*start, class);
+    cache[start.0 * 256 + start.1] = Some(class);
     let mut cnt = 0;
     // compute the equivalence area
     while cur.len() > 0 {
@@ -90,9 +90,9 @@ fn compute_class_graph(
                     // extend equivalence area
                     if grid[nr as usize][nc as usize] == grid[r][c] {
                         // add to queue unless already visited
-                        if !cache.contains_key(&npos) {
+                        if cache[npos.0 * 256 + npos.1].is_none() {
                             next.push(npos);
-                            cache.insert(npos, class);
+                            cache[npos.0 * 256 + npos.1] = Some(class);
                         }
                     } else if grid[nr as usize][nc as usize] < grid[r][c] {
                         // lower adjacent area - record its class
@@ -143,7 +143,7 @@ pub fn part3(input: &str) -> String {
     let all_points = (0..grid.len())
         .flat_map(|r| (0..grid[0].len()).map(move |c| (r, c)))
         .collect::<Vec<(usize, usize)>>();
-    let mut cache: HashMap<(usize, usize), usize> = HashMap::new();
+    let mut cache: Vec<Option<usize>> = vec![None; 256 * 256];
     let mut graph: Vec<ClassNode> = vec![];
     all_points.iter().for_each(|pos| {
         compute_class_graph(&grid, pos, &mut cache, &mut graph);
