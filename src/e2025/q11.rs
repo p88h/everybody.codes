@@ -1,5 +1,3 @@
-use core::num;
-
 pub fn part1(input: &str) -> String {
     let mut nums = input.lines().map(|line| line.parse::<i64>().unwrap()).collect::<Vec<i64>>();
     let mut round = 0;
