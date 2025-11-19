@@ -1,4 +1,3 @@
-
 pub fn inverse_modulus(mut a: i64, mut m: i64) -> i64 {
     let m0 = m;
     let (mut x0, mut x1) = (0, 1);
@@ -10,7 +9,11 @@ pub fn inverse_modulus(mut a: i64, mut m: i64) -> i64 {
         (m, a) = (a % m, m);
         (x0, x1) = (x1 - q * x0, x0);
     }
-    if x1 < 0 { x1 + m0 } else { x1 }
+    if x1 < 0 {
+        x1 + m0
+    } else {
+        x1
+    }
 }
 
 pub fn compute_crt(remainders: &Vec<i64>, moduli: &Vec<i64>) -> i64 {

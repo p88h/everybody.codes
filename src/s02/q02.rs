@@ -13,10 +13,10 @@ pub fn part1(input: &str) -> String {
     (pos + used).to_string()
 }
 
-fn carnival(input: &str, rep: usize) -> usize{
+fn carnival(input: &str, rep: usize) -> usize {
     let mut left = input.as_bytes().repeat(rep).to_vec();
     left.reserve(input.len() * rep);
-    let right = input.as_bytes().repeat(rep).to_vec();    
+    let right = input.as_bytes().repeat(rep).to_vec();
     let bolts = "RGB".as_bytes();
     let mut cur = 0;
     let (mut lp, mut rp, mut ls, mut rs) = (0, 0, left.len(), right.len());
@@ -29,7 +29,7 @@ fn carnival(input: &str, rep: usize) -> usize{
             lp += 1;
             rp += 1;
             ls -= 1;
-            rs -= 1;            
+            rs -= 1;
         } else {
             lp += 1;
             left.push(right[rp]);

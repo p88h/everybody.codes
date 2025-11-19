@@ -1,4 +1,4 @@
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 fn bfs(grid: &Vec<Vec<u8>>, skip: &Vec<bool>, start: &Vec<(usize, usize)>) -> (Vec<bool>, usize) {
     let dirs = vec![(0, 1), (1, 0), (0, -1), (-1, 0)];
@@ -30,19 +30,13 @@ fn bfs(grid: &Vec<Vec<u8>>, skip: &Vec<bool>, start: &Vec<(usize, usize)>) -> (V
 }
 
 pub fn part1(input: &str) -> String {
-    let grid = input
-        .lines()
-        .map(|line| line.as_bytes().to_vec())
-        .collect::<Vec<Vec<u8>>>();
+    let grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
     let visited = bfs(&grid, &vec![false; 256 * 256], &vec![(0, 0)]);
     visited.1.to_string()
 }
 
 pub fn part2(input: &str) -> String {
-    let grid = input
-        .lines()
-        .map(|line| line.as_bytes().to_vec())
-        .collect::<Vec<Vec<u8>>>();
+    let grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
     let visited = bfs(
         &grid,
         &vec![false; 256 * 256],
@@ -70,11 +64,7 @@ fn compute_class_graph(
     let mut cur = vec![*start];
     let mut child_set: HashSet<usize> = HashSet::new();
     let class = graph.len();
-    graph.push(ClassNode {
-        size: 0,
-        children: vec![],
-        has_parent: false,
-    });
+    graph.push(ClassNode { size: 0, children: vec![], has_parent: false });
     cache[start.0 * 256 + start.1] = Some(class);
     let mut cnt = 0;
     // compute the equivalence area
@@ -127,7 +117,7 @@ fn fast_bfs(start: usize, graph: &mut Vec<ClassNode>, explode: bool) -> usize {
             }
             if explode {
                 graph[node].children = vec![];
-                graph[node].size = 0;                
+                graph[node].size = 0;
             }
         }
         cur = next;
@@ -136,10 +126,7 @@ fn fast_bfs(start: usize, graph: &mut Vec<ClassNode>, explode: bool) -> usize {
 }
 
 pub fn part3(input: &str) -> String {
-    let grid = input
-        .lines()
-        .map(|line| line.as_bytes().to_vec())
-        .collect::<Vec<Vec<u8>>>();
+    let grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
     let all_points = (0..grid.len())
         .flat_map(|r| (0..grid[0].len()).map(move |c| (r, c)))
         .collect::<Vec<(usize, usize)>>();

@@ -8,10 +8,7 @@ struct Pair {
 impl std::ops::Add for Pair {
     type Output = Pair;
     fn add(self, other: Pair) -> Pair {
-        Pair {
-            val: self.val + other.val,
-            sum: self.sum + other.sum,
-        }
+        Pair { val: self.val + other.val, sum: self.sum + other.sum }
     }
 }
 

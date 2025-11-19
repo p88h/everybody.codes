@@ -1,5 +1,5 @@
-use itertools::Itertools;
 use hungarian::minimize;
+use itertools::Itertools;
 
 fn toss(grid: &Vec<&[u8]>, dir: &[u8], slot: usize) -> i32 {
     let mut col = slot * 2;
@@ -37,21 +37,21 @@ pub fn part2(input: &str) -> String {
     let (grid, dirs) = parse_input(input);
     let mut total = 0;
     for (_, dir) in dirs.iter().enumerate() {
-        total += (0..(grid[0].len() + 1)/ 2).map(|pos| toss(&grid, dir, pos)).max().unwrap();
+        total += (0..(grid[0].len() + 1) / 2).map(|pos| toss(&grid, dir, pos)).max().unwrap();
     }
     total.to_string()
 }
 
 pub fn part3(input: &str) -> String {
     let (grid, dirs) = parse_input(input);
-    let mut costs : Vec<i32> = vec![];
+    let mut costs: Vec<i32> = vec![];
     for (_, dir) in dirs.iter().enumerate() {
-        costs.append(&mut (0..(grid[0].len() + 1)/ 2).map(|pos| toss(&grid, dir, pos)).collect::<Vec<i32>>());
+        costs.append(&mut (0..(grid[0].len() + 1) / 2).map(|pos| toss(&grid, dir, pos)).collect::<Vec<i32>>());
     }
     let mins = minimize(&costs.as_slice(), dirs.len(), costs.len() / dirs.len());
     let sum1 = mins.iter().enumerate().map(|(i, &pos)| toss(&grid, dirs[i], pos.unwrap())).sum::<i32>();
     // now negate all costs
-    costs = costs.iter().map(|c| 1000-c).collect::<Vec<i32>>();
+    costs = costs.iter().map(|c| 1000 - c).collect::<Vec<i32>>();
     let maxs = minimize(&costs.as_slice(), dirs.len(), costs.len() / dirs.len());
     let sum2 = maxs.iter().enumerate().map(|(i, &pos)| toss(&grid, dirs[i], pos.unwrap())).sum::<i32>();
     format!("{} {}", sum1, sum2)
@@ -149,6 +149,4 @@ LLRLLRLLLRRL
 LRLRLLLRRRRL";
         assert_eq!(part3(input), "13 43");
     }
-
-
 }

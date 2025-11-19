@@ -32,12 +32,7 @@ impl Tree {
 
     fn add_node(&mut self, value: u64, label: String) {
         let index = self.nodes.len();
-        self.nodes.push(Node {
-            value,
-            label,
-            left: 0,
-            right: 0,
-        });
+        self.nodes.push(Node { value, label, left: 0, right: 0 });
         if index > 1 {
             self.insert(index, index % 2);
         }
@@ -54,7 +49,7 @@ impl Tree {
         }
     }
 
-    fn largest_level(&self, subtree: usize) -> usize {        
+    fn largest_level(&self, subtree: usize) -> usize {
         let mut level_count = vec![0; self.nodes.len()];
         self.count_levels(subtree, 0, &mut level_count);
         level_count.iter().enumerate().rev().max_by_key(|&(_, count)| count).unwrap().0
@@ -64,7 +59,7 @@ impl Tree {
         let node = &self.nodes[index];
         if current == level {
             labels.push(node.label.clone());
-            return
+            return;
         }
         if node.left != 0 {
             self.visit_level(node.left, current + 1, level, labels);
@@ -101,9 +96,9 @@ fn parse_line(line: &str, tree: &mut Tree, super_swap: bool) {
     if cmd == "ADD" {
         let _id = parts.next().unwrap()[3..].parse::<u64>().unwrap();
         let ls = parts.next().unwrap();
-        let mut left = ls[6..ls.len()-1].split(',');
+        let mut left = ls[6..ls.len() - 1].split(',');
         let rs = parts.next().unwrap();
-        let mut right = rs[7..rs.len()-1].split(',');
+        let mut right = rs[7..rs.len() - 1].split(',');
         let lv = left.next().unwrap().parse::<u64>().unwrap();
         let rv = right.next().unwrap().parse::<u64>().unwrap();
         tree.add_node(lv, left.next().unwrap().to_string());
@@ -137,7 +132,6 @@ fn run_task(input: &str, super_swap: bool) -> String {
     let labels2 = tree.get_level_labels(level2, 1);
     format!("{labels1}{labels2}")
 }
-
 
 pub fn part1(input: &str) -> String {
     run_task(input, false)

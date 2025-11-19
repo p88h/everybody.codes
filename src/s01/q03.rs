@@ -1,9 +1,10 @@
 use crate::algo::math::*;
 
 fn parse_input(input: &str) -> Vec<Vec<i32>> {
-    input.lines().map(|line| {
-        line.split_whitespace().map(|s| s[2..].parse::<i32>().unwrap()).collect()
-    }).collect()
+    input
+        .lines()
+        .map(|line| line.split_whitespace().map(|s| s[2..].parse::<i32>().unwrap()).collect())
+        .collect()
 }
 
 pub fn part1(input: &str) -> String {

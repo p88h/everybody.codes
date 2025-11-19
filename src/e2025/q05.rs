@@ -16,11 +16,7 @@ fn make_fishbone(input: &str) -> Fishbone {
     let pc = input.find(':').unwrap();
     let id = input[..pc].parse::<i32>().unwrap_or(0);
     let parts = input[pc + 1..].split(',').filter_map(|s| s.parse::<i32>().ok()).collect::<Vec<i32>>();
-    let mut fishbone = Fishbone {
-        id,
-        segments: vec![Segment::default()],
-        scores: vec![0],
-    };
+    let mut fishbone = Fishbone { id, segments: vec![Segment::default()], scores: vec![0] };
     for &value in parts.iter() {
         for seg in fishbone.segments.iter_mut() {
             if seg.center.is_some() {
@@ -36,10 +32,7 @@ fn make_fishbone(input: &str) -> Fishbone {
                 seg.center = Some(value);
             }
         }
-        if fishbone.segments[fishbone.segments.len() - 1]
-            .center
-            .is_some()
-        {
+        if fishbone.segments[fishbone.segments.len() - 1].center.is_some() {
             fishbone.segments.push(Segment::default());
         }
     }

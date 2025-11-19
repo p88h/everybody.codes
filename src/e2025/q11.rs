@@ -4,28 +4,28 @@ pub fn part1(input: &str) -> String {
     let mut moved = true;
     while moved && round < 10 {
         moved = false;
-        for i in 0..nums.len()-1 {
-            if nums[i] > nums[i+1] {
+        for i in 0..nums.len() - 1 {
+            if nums[i] > nums[i + 1] {
                 nums[i] -= 1;
-                nums[i+1] += 1;
+                nums[i + 1] += 1;
                 moved = true;
             }
         }
-        if moved {  
+        if moved {
             round += 1;
         }
     }
     moved = true;
     while moved && round < 10 {
         moved = false;
-        for i in 0..nums.len()-1 {
-            if nums[i] < nums[i+1] {
-                nums[i+1] -= 1;
+        for i in 0..nums.len() - 1 {
+            if nums[i] < nums[i + 1] {
+                nums[i + 1] -= 1;
                 nums[i] += 1;
                 moved = true;
             }
         }
-        if moved {  
+        if moved {
             round += 1;
         }
     }
@@ -40,12 +40,12 @@ struct Segment {
 
 pub fn part2(input: &str) -> String {
     let nums = input.lines().map(|line| line.parse::<i64>().unwrap()).collect::<Vec<i64>>();
-    let mut done : Vec<Segment> = vec![];
+    let mut done: Vec<Segment> = vec![];
     let mut start = 0;
-    while start < nums.len() -1 {
+    while start < nums.len() - 1 {
         let mut end = start;
         let mut sum = nums[start];
-        while end < nums.len()-1 && nums[end] >= nums[end + 1] {
+        while end < nums.len() - 1 && nums[end] >= nums[end + 1] {
             end += 1;
             sum += nums[end];
         }
@@ -68,7 +68,7 @@ pub fn part2(input: &str) -> String {
         start = end + 1;
     }
     // compute target height based on segmentation
-    let nums2  = done.iter().flat_map(|s| vec![s.height; s.cnt]).collect::<Vec<i64>>();    
+    let nums2 = done.iter().flat_map(|s| vec![s.height; s.cnt]).collect::<Vec<i64>>();
     let mut max_gap = 0;
     let mut carry = 0;
     // shift ducks over to the new heights
@@ -100,5 +100,4 @@ mod tests {
         assert_eq!(part3("9\n1\n1\n4\n9\n6"), "11");
         assert_eq!(part3("805\n706\n179\n48\n158\n150\n232\n885\n598\n524\n423"), "1579");
     }
-    
 }

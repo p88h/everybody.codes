@@ -5,10 +5,7 @@ pub struct UnionFind {
 
 impl UnionFind {
     pub fn new(size: usize) -> Self {
-        UnionFind {
-            parent: (0..size).collect(),
-            rank: vec![0; size],
-        }
+        UnionFind { parent: (0..size).collect(), rank: vec![0; size] }
     }
 
     pub fn find(&mut self, x: usize) -> usize {
@@ -48,12 +45,7 @@ impl UnionFind {
             let root = self.find(i);
             counts[root] += 1;
         }
-        counts
-            .iter()
-            .enumerate()
-            .max_by_key(|(_, count)| *count)
-            .map(|(id, _)| id)
-            .unwrap_or(0)
+        counts.iter().enumerate().max_by_key(|(_, count)| *count).map(|(id, _)| id).unwrap_or(0)
     }
 }
 

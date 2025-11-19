@@ -21,17 +21,11 @@ pub fn part2(input: &str) -> String {
 
 pub fn part3(input: &str) -> String {
     let mut lines = input.lines();
-    let first = lines
-        .next()
-        .and_then(|line| line.parse::<i64>().ok())
-        .unwrap_or(0);
+    let first = lines.next().and_then(|line| line.parse::<i64>().ok()).unwrap_or(0);
     let mut t = first * 100;
     for line in lines {
         if line.contains('|') {
-            let parts = line
-                .split('|')
-                .filter_map(|s| s.parse::<i64>().ok())
-                .collect::<Vec<i64>>();
+            let parts = line.split('|').filter_map(|s| s.parse::<i64>().ok()).collect::<Vec<i64>>();
             if parts[0] > parts[1] {
                 let d = parts[0] / parts[1];
                 t /= d;

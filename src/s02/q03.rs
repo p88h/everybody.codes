@@ -17,10 +17,8 @@ impl Dice {
         let faces_part = parts.next().unwrap();
         let seed_part = parts.next().unwrap();
         let faces_str = faces_part.strip_prefix("faces=[").unwrap().strip_suffix("]").unwrap();
-        let faces = faces_str.split(',')
-            .filter_map(|s| s.parse::<i64>().ok())
-            .collect::<Vec<i64>>();
-        let seed = seed_part.strip_prefix("seed=").unwrap().parse::<i64>().unwrap();   
+        let faces = faces_str.split(',').filter_map(|s| s.parse::<i64>().ok()).collect::<Vec<i64>>();
+        let seed = seed_part.strip_prefix("seed=").unwrap().parse::<i64>().unwrap();
         Dice { faces, seed, pulse: seed, counter: 1, prev: 0 }
     }
 
@@ -53,7 +51,7 @@ pub fn part2(input: &str) -> String {
     let (first, second) = input.split_once("\n\n").unwrap();
     let mut dice_set = first.lines().map(|line| Dice::new(line)).collect::<Vec<Dice>>();
     let digits = second.chars().map(|c| c.to_digit(10).unwrap() as usize).collect::<Vec<usize>>();
-    let mut results : Vec<(i64, usize)> = vec![];
+    let mut results: Vec<(i64, usize)> = vec![];
     for (id, dice) in dice_set.iter_mut().enumerate() {
         for &digit in digits.iter() {
             while dice.spin() as usize != digit {}
@@ -65,35 +63,35 @@ pub fn part2(input: &str) -> String {
 }
 
 fn play_dice(dice: &mut Dice, grid: &Vec<Vec<i64>>) -> HashSet<(usize, usize)> {
-    let mut visited : HashSet<(usize, usize)> = HashSet::new();
+    let mut visited: HashSet<(usize, usize)> = HashSet::new();
     let mut spin = dice.spin();
-    let mut current : HashSet<(usize, usize)> = HashSet::new();
+    let mut current: HashSet<(usize, usize)> = HashSet::new();
     for r in 0..grid.len() {
         for c in 0..grid[0].len() {
             if spin == grid[r][c] {
-                current.insert((r,c));
+                current.insert((r, c));
             }
         }
     }
     while current.len() > 0 {
-        let mut next : HashSet<(usize, usize)> = HashSet::new();
+        let mut next: HashSet<(usize, usize)> = HashSet::new();
         spin = dice.spin();
-        for &(r,c) in current.iter() {
-            visited.insert((r,c));
+        for &(r, c) in current.iter() {
+            visited.insert((r, c));
             if spin == grid[r][c] {
                 next.insert((r, c));
             }
-            if r > 0 && spin == grid[r-1][c] {
-                next.insert((r-1, c));
+            if r > 0 && spin == grid[r - 1][c] {
+                next.insert((r - 1, c));
             }
-            if r + 1 < grid.len() && spin == grid[r+1][c] {
-                next.insert((r+1, c));
-            }   
-            if c > 0 && spin == grid[r][c-1] {
-                next.insert((r, c-1));
+            if r + 1 < grid.len() && spin == grid[r + 1][c] {
+                next.insert((r + 1, c));
             }
-            if c + 1 < grid[0].len() && spin == grid[r][c+1] {
-                next.insert((r, c+1));
+            if c > 0 && spin == grid[r][c - 1] {
+                next.insert((r, c - 1));
+            }
+            if c + 1 < grid[0].len() && spin == grid[r][c + 1] {
+                next.insert((r, c + 1));
             }
         }
         current = next;
@@ -104,12 +102,12 @@ fn play_dice(dice: &mut Dice, grid: &Vec<Vec<i64>>) -> HashSet<(usize, usize)> {
 pub fn part3(input: &str) -> String {
     let (first, second) = input.split_once("\n\n").unwrap();
     let mut dice_set = first.lines().map(|line| Dice::new(line)).collect::<Vec<Dice>>();
-    let grid = second.lines().map(|line| {
-        line.chars().map(|c| c.to_digit(10).unwrap() as i64).collect::<Vec<i64>>()
-    }).collect::<Vec<Vec<i64>>>();    
-    let all_visited = dice_set.par_iter_mut()
-        .map(|dice| play_dice(dice, &grid))
-        .reduce(HashSet::new, |mut acc, visited| {
+    let grid = second
+        .lines()
+        .map(|line| line.chars().map(|c| c.to_digit(10).unwrap() as i64).collect::<Vec<i64>>())
+        .collect::<Vec<Vec<i64>>>();
+    let all_visited =
+        dice_set.par_iter_mut().map(|dice| play_dice(dice, &grid)).reduce(HashSet::new, |mut acc, visited| {
             acc.extend(visited);
             acc
         });
@@ -127,7 +125,7 @@ mod tests {
 3: faces=[9,8,7,8,9] seed=17";
         assert_eq!(part1(input), "844");
     }
-    
+
     #[test]
     fn test_part2() {
         let input = "1: faces=[1,2,3,4,5,6,7,8,9] seed=13
@@ -151,8 +149,7 @@ mod tests {
         assert_eq!(part3(input), "33");
     }
 
-
-        #[test]
+    #[test]
     fn test_part3_large() {
         let input = "\
 1: faces=[1,2,3,4,5,6,7,8,9] seed=339211

@@ -5,28 +5,27 @@ fn find_dragon(grid: &mut Vec<Vec<u8>>) -> (usize, usize) {
         for c in 0..grid[r].len() {
             if grid[r][c] == b'D' {
                 grid[r][c] = b'.';
-                return (r,c)
+                return (r, c);
             }
         }
     }
     (grid.len(), grid[0].len())
 }
 
-
 pub fn part1(input: &str) -> String {
     let mut grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
     let dpos = find_dragon(&mut grid);
     let mut pos = vec![dpos];
     // knight moves
-    let ofs = vec![(-1,-2), (-2,-1), (-2,1), (-1,2), (1,2), (2,1), (2,-1), (1,-2)];
+    let ofs = vec![(-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1), (2, -1), (1, -2)];
     let mut sheep = 0;
     for _ in 0..4 {
         let mut new_pos = vec![];
-        for &(r,c) in pos.iter() {
-            for &(dr,dc) in ofs.iter() {
+        for &(r, c) in pos.iter() {
+            for &(dr, dc) in ofs.iter() {
                 let nr = r as i32 + dr;
                 let nc = c as i32 + dc;
-                if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
+                if nr >= 0 && nr < grid.len() as i32 && nc >= 0 && nc < grid[0].len() as i32 {
                     if grid[nr as usize][nc as usize] != b'X' {
                         if grid[nr as usize][nc as usize] == b'S' {
                             sheep += 1;
@@ -36,7 +35,6 @@ pub fn part1(input: &str) -> String {
                     }
                 }
             }
-
         }
         if new_pos.len() == 0 {
             break;
@@ -52,16 +50,16 @@ pub fn part2(input: &str) -> String {
     let dpos = find_dragon(&mut grid);
     let mut pos = vec![dpos];
     // knight moves
-    let ofs = vec![(-1,-2), (-2,-1), (-2,1), (-1,2), (1,2), (2,1), (2,-1), (1,-2)];
+    let ofs = vec![(-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1), (2, -1), (1, -2)];
     let mut sheep = 0;
     for _ in 0..20 {
-        let mut new_pos = std::collections::HashSet::new(); 
+        let mut new_pos = std::collections::HashSet::new();
         // move the dragon
-        for &(r,c) in pos.iter() {
-            for &(dr,dc) in ofs.iter() {
+        for &(r, c) in pos.iter() {
+            for &(dr, dc) in ofs.iter() {
                 let nr = r as i32 + dr;
                 let nc = c as i32 + dc;
-                if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
+                if nr >= 0 && nr < grid.len() as i32 && nc >= 0 && nc < grid[0].len() as i32 {
                     if grid[nr as usize][nc as usize] == b'S' {
                         sheep += 1;
                         grid[nr as usize][nc as usize] = b'.';
@@ -74,12 +72,12 @@ pub fn part2(input: &str) -> String {
         for r in (0..grid.len()).rev() {
             for c in 0..grid[0].len() {
                 if grid[r][c] == b'S' || grid[r][c] == b'H' {
-                    grid[r][c] -= 37;       // S becomes ., H becomes #                    
+                    grid[r][c] -= 37; // S becomes ., H becomes #
                     if r < grid.len() - 1 {
-                        if new_pos.contains(&(r + 1 ,c)) && grid[r+1][c] != b'#' {
-                            sheep += 1;         // eaten by dragon  
+                        if new_pos.contains(&(r + 1, c)) && grid[r + 1][c] != b'#' {
+                            sheep += 1; // eaten by dragon
                         } else {
-                            grid[r+1][c] += 37; // . becomes S, # becomes H
+                            grid[r + 1][c] += 37; // . becomes S, # becomes H
                         }
                     }
                 }
@@ -97,14 +95,14 @@ pub fn part2(input: &str) -> String {
 // map start position to all end positions
 fn precompute_dragon_moves(grid: &mut Vec<Vec<u8>>) -> Vec<Vec<usize>> {
     let mut moves = vec![vec![]; 64];
-    let ofs = vec![(-1,-2), (-2,-1), (-2,1), (-1,2), (1,2), (2,1), (2,-1), (1,-2)];
+    let ofs = vec![(-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1), (2, -1), (1, -2)];
     for r in 0..grid.len() {
         for c in 0..grid[r].len() {
             let idx = r * 8 + c;
-            for &(dr,dc) in ofs.iter() {
+            for &(dr, dc) in ofs.iter() {
                 let nr = r as i32 + dr;
                 let nc = c as i32 + dc;
-                if nr >=0 && nr < grid.len() as i32 && nc >=0 && nc < grid[0].len() as i32 {
+                if nr >= 0 && nr < grid.len() as i32 && nc >= 0 && nc < grid[0].len() as i32 {
                     let nidx = nr as usize * 8 + nc as usize;
                     moves[idx].push(nidx);
                 }
@@ -114,8 +112,14 @@ fn precompute_dragon_moves(grid: &mut Vec<Vec<u8>>) -> Vec<Vec<usize>> {
     moves
 }
 
-fn explore(grid: &mut Vec<Vec<u8>>, spos: u32, di: usize, moves: &Vec<Vec<usize>>, scnt: usize, 
-    cache: &mut HashMap<u32, usize>) -> usize {
+fn explore(
+    grid: &mut Vec<Vec<u8>>,
+    spos: u32,
+    di: usize,
+    moves: &Vec<Vec<usize>>,
+    scnt: usize,
+    cache: &mut HashMap<u32, usize>,
+) -> usize {
     let mut tot = 0;
     let cache_key = (spos & 0xFFFFFF) | ((di as u32) << 24);
     if cache.contains_key(&cache_key) {
@@ -133,14 +137,14 @@ fn explore(grid: &mut Vec<Vec<u8>>, spos: u32, di: usize, moves: &Vec<Vec<usize>
                 continue;
             }
             // move down if possible
-            let npos = if (r * 8 + i + 8) != di || grid[r+1][i] == b'#' { spos + (1 << (i * 3)) } else { spos };
+            let npos = if (r * 8 + i + 8) != di || grid[r + 1][i] == b'#' { spos + (1 << (i * 3)) } else { spos };
             if npos == spos && scnt > 1 {
                 continue;
             }
             // try all dragon moves from current dragon position
             for ndi in moves[di].iter() {
                 let nr = ndi / 8;
-                let nc = ndi % 8;                    
+                let nc = ndi % 8;
                 if npos >> (nc * 3) & 7 == nr as u32 && grid[nr][nc] == b'.' {
                     // eat the sheep
                     tot += explore(grid, npos | (0x7 << (nc * 3)), *ndi, moves, scnt - 1, cache);
@@ -167,16 +171,15 @@ pub fn part3(input: &str) -> String {
         }
         for j in (0..grid.len()).rev() {
             // hideout at the bottom is basically safe zone
-            if grid[j][i] == b'#' && (j == grid.len() - 1 || grid[j+1][i] == b'@') {
+            if grid[j][i] == b'#' && (j == grid.len() - 1 || grid[j + 1][i] == b'@') {
                 grid[j][i] = b'@';
             }
         }
     }
     let moves = precompute_dragon_moves(&mut grid);
-    let mut cache= HashMap::new();
+    let mut cache = HashMap::new();
     explore(&mut grid, spos, dpos.0 * 8 + dpos.1, &moves, scnt, &mut cache).to_string()
 }
-
 
 #[cfg(test)]
 mod tests {
