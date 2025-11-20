@@ -11,7 +11,7 @@ pub fn part1(input: &str) -> String {
     dial[2025 % dial.len()].to_string()
 }
 
-fn rangefnder(input: &str, index: i64) -> i64 {
+fn rangefnder(input: &str, mut index: i64) -> i64 {
     let ranges = input
         .lines()
         .map(|line| {
@@ -19,32 +19,35 @@ fn rangefnder(input: &str, index: i64) -> i64 {
             (start.parse::<i64>().unwrap(), end.parse::<i64>().unwrap())
         })
         .collect::<Vec<(i64, i64)>>();
-    let mut left = Vec::new();
-    let mut right = vec![(1i64, 1i64)];
-    for (idx, (start, end)) in ranges.iter().enumerate() {
-        if idx % 2 == 0 {
-            right.push((*start, *end));
+    let sum = 1 + ranges.iter().map(|(s, e)| e - s + 1 ).sum::<i64>();
+    index %= sum;
+    let rindex = sum - index - 1;
+    // handle 0 case
+    if index == 0 {
+        return 1;
+    } else {
+        index -= 1;
+    }
+    // scan right
+    for (start, end) in ranges.iter().step_by(2) {
+        let len = end - start + 1;
+        if index < len {
+            return start + index;
         } else {
-            left.push((*end, *start));
+            index -= len;
         }
     }
-    left.reverse();
-    right.extend(left);
-    let sum = right.iter().map(|(s, e)| if e > s { e - s + 1 } else { s - e + 1 }).sum::<i64>();
-    let mut target = index % sum;
-    for (start, end) in right.iter() {
-        let len = if end > start { end - start + 1 } else { start - end + 1 };
-        if target < len {
-            if end >= start {
-                return start + target;
-            } else {
-                return start - target;
-            }
+    // scan left
+    index = rindex;
+    for (start, end) in ranges[1..].iter().step_by(2) {
+        let len = end - start + 1;
+        if index < len {
+            return start + index;
         } else {
-            target -= len;
+            index -= len;
         }
     }
-    0
+    -1
 }
 
 pub fn part2(input: &str) -> String {
