@@ -29,9 +29,8 @@ fn rangefnder(input: &str, mut index: i64) -> i64 {
             let len = end - start + 1;
             if arr[ofs] < len {
                 return start + arr[ofs];
-            } else {
-                arr[ofs] -= len;
             }
+            arr[ofs] -= len;
             ofs ^= 1;
         }
     }
