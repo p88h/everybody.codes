@@ -19,11 +19,11 @@ fn rangefnder(input: &str, mut index: i64) -> i64 {
             (start.parse::<i64>().unwrap(), end.parse::<i64>().unwrap())
         })
         .collect::<Vec<(i64, i64)>>();
-    let sum = 1 + ranges.iter().map(|(s, e)| e - s + 1 ).sum::<i64>();
+    let sum = 1 + ranges.iter().map(|(s, e)| e - s + 1).sum::<i64>();
     index %= sum;
     if index > 0 {
-        let mut arr = [index - 1,  sum - index - 1];
-        let mut ofs= 0;
+        let mut arr = [index - 1, sum - index - 1];
+        let mut ofs = 0;
         // look both ways at the same time
         for (start, end) in ranges.iter() {
             let len = end - start + 1;
