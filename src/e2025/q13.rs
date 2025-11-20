@@ -21,33 +21,22 @@ fn rangefnder(input: &str, mut index: i64) -> i64 {
         .collect::<Vec<(i64, i64)>>();
     let sum = 1 + ranges.iter().map(|(s, e)| e - s + 1 ).sum::<i64>();
     index %= sum;
-    let rindex = sum - index - 1;
+    if index > 0 {
+        let mut arr = [index - 1,  sum - index - 1];
+        let mut ofs= 0;
+        // look both ways at the same time
+        for (start, end) in ranges.iter() {
+            let len = end - start + 1;
+            if arr[ofs] < len {
+                return start + arr[ofs];
+            } else {
+                arr[ofs] -= len;
+            }
+            ofs ^= 1;
+        }
+    }
     // handle 0 case
-    if index == 0 {
-        return 1;
-    } else {
-        index -= 1;
-    }
-    // scan right
-    for (start, end) in ranges.iter().step_by(2) {
-        let len = end - start + 1;
-        if index < len {
-            return start + index;
-        } else {
-            index -= len;
-        }
-    }
-    // scan left
-    index = rindex;
-    for (start, end) in ranges[1..].iter().step_by(2) {
-        let len = end - start + 1;
-        if index < len {
-            return start + index;
-        } else {
-            index -= len;
-        }
-    }
-    -1
+    1
 }
 
 pub fn part2(input: &str) -> String {
