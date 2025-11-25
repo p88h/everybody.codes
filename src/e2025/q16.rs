@@ -1,6 +1,3 @@
-use num_bigint::{BigUint, ToBigUint};
-use num_traits::cast::ToPrimitive;
-
 fn spell_power(spell: &Vec<u64>, val: u64) -> u64 {
     let mut tot = 0;
     for n in spell {
@@ -34,27 +31,23 @@ pub fn part2(input: &str) -> String {
     find_spell(input).iter().product::<u64>().to_string()
 }
 
-fn gcd(a: BigUint, b: BigUint) -> BigUint {
-    if b == BigUint::from(0u32) { a } else { gcd(b.clone(), a % b) }
-}
-
-fn lcm(v: Vec<u64>) -> BigUint {
-    v.iter().fold(1.to_biguint().unwrap(), |acc, x| {
-        &acc * x / gcd(acc, x.to_biguint().unwrap())
-    })
+fn inverse_spell(spell: &Vec<u64>) -> u64 {
+    // inverse of part1 but for 202520252025000 blocks
+    // if spell is [a,b,c], then the answer is x/a + x/b + x/c = 202520252025
+    // so 202520252025 / x = (1/a + 1/b + 1/c)
+    // the input numbers are small-ish, so we use a similar size denominator.
+    // Integer math requires big integers here, and is not precise anyway, so we use f64
+    let denom = 1000.0_f64;
+    let numer = spell.iter().map(|x| denom / (*x as f64)).sum::<f64>();
+    // now invert    
+    let res1 = denom * 202520252025000u64 as f64;
+    (res1 / numer) as u64
 }
 
 pub fn part3(input: &str) -> String {
     let spell = find_spell(input);
-    // inverse of part1 but for 202520252025000 blocks
-    // if spell is [a,b,c], then the answer is x/a + x/b + x/c = 202520252025
-    // so 202520252025 / x = (1/a + 1/b + 1/c)    
-    let denom = lcm(spell.clone());
-    let numer = spell.iter().map(|x| &denom / x).fold(BigUint::from(0u64), |acc, x| acc + x);
-    // now invert    
-    let res1 = denom * 202520252025000u64.to_biguint().unwrap();
-    let mut result = (res1 / numer).to_u64().unwrap();
     // now increase until we find the right one, this needs just a few steps
+    let mut result = inverse_spell(&spell);
     let mut step = 4;
     loop {
         if spell_power(&spell, result + step) > 202520252025000u64 {
