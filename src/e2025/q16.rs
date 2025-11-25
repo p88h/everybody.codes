@@ -1,21 +1,25 @@
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::cast::ToPrimitive;
 
-pub fn part1(input: &str) -> String {
-    let nums = input.split(',').filter_map(|s| s.parse::<i32>().ok()).collect::<Vec<i32>>();
+fn spell_power(spell: &Vec<u64>, val: u64) -> u64 {
     let mut tot = 0;
-    for n in &nums {
-        tot += 90 / n;
+    for n in spell {
+        tot += val / n;
     }
-    tot.to_string()
+    tot
 }
 
-pub fn part2(input: &str) -> String {
-    let mut nums = input.split(',').filter_map(|s| s.parse::<i32>().ok()).collect::<Vec<i32>>();
-    let mut tot = 1;
+pub fn part1(input: &str) -> String {
+    let nums = input.split(',').filter_map(|s| s.parse::<u64>().ok()).collect::<Vec<u64>>();
+    spell_power(&nums, 90).to_string()
+}
+
+fn find_spell(input: &str) -> Vec<u64> {
+    let mut nums = input.split(',').filter_map(|s| s.parse::<u64>().ok()).collect::<Vec<u64>>();
+    let mut ret = vec![];
     for i in 0..nums.len() {
         if nums[i] != 0 {
-            tot *= i + 1;
+            ret.push((i + 1) as u64);
             let mut k = i;
             while k < nums.len() {
                 nums[k] -= 1;
@@ -23,50 +27,44 @@ pub fn part2(input: &str) -> String {
             }
         }
     }
-    tot.to_string()
+    ret
+}
+
+pub fn part2(input: &str) -> String {
+    find_spell(input).iter().product::<u64>().to_string()
 }
 
 fn gcd(a: BigUint, b: BigUint) -> BigUint {
     if b == BigUint::from(0u32) { a } else { gcd(b.clone(), a % b) }
 }
 
-fn lcm(v: Vec<u128>) -> BigUint {
+fn lcm(v: Vec<u64>) -> BigUint {
     v.iter().fold(1.to_biguint().unwrap(), |acc, x| {
         &acc * x / gcd(acc, x.to_biguint().unwrap())
     })
 }
 
 pub fn part3(input: &str) -> String {
-    let mut nums = input.split(',').filter_map(|s| s.parse::<i128>().ok()).collect::<Vec<i128>>();
-    let mut spell = vec![];
-    for i in 0..nums.len() {
-        if nums[i] != 0 {
-            spell.push((i + 1) as u128);
-            let mut k = i;
-            while k < nums.len() {
-                nums[k] -= 1;
-                k += i + 1;
-            }
-        }
-    }
+    let spell = find_spell(input);
     // inverse of part1 but for 202520252025000 blocks
     // if spell is [a,b,c], then the answer is x/a + x/b + x/c = 202520252025
-    // so 202520252025 / x = (1/a + 1/b + 1/c)
+    // so 202520252025 / x = (1/a + 1/b + 1/c)    
     let denom = lcm(spell.clone());
-    let numer = spell.iter().map(|x| &denom / x).fold(BigUint::from(0u32), |acc, x| acc + x);
-    // now invert
-    let res1 = denom * 202520252025000u128.to_biguint().unwrap();
-    // now increase until we find the right one
-    let mut result = (res1 / numer).to_u128().unwrap();
+    let numer = spell.iter().map(|x| &denom / x).fold(BigUint::from(0u64), |acc, x| acc + x);
+    // now invert    
+    let res1 = denom * 202520252025000u64.to_biguint().unwrap();
+    let mut result = (res1 / numer).to_u64().unwrap();
+    // now increase until we find the right one, this needs just a few steps
+    let mut step = 4;
     loop {
-        let mut tot = 0;
-        for n in &spell {
-            tot += (result + 1) / n;
-        }
-        if tot > 202520252025000u128 {
+        if spell_power(&spell, result + step) > 202520252025000u64 {
+            if step > 1 {
+                step /= 2;
+                continue;
+            }
             break;
-        }
-        result += 1;
+        } 
+        result += step;
     }
     result.to_string()
 }
