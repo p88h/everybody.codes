@@ -12,6 +12,11 @@ fn maybe_parse_arg(args: &Vec<String>, pos: usize, default: i32) -> i32 {
     if args[pos].is_empty() || args[pos] == "all" {
         return -1;
     }
+    if let Some(first_char) = args[pos].chars().next() {
+        if first_char.is_alphabetic() {
+            return args[pos][1..].parse().unwrap_or(-1);
+        }
+    }
     return args[pos].parse().unwrap_or(-1);
 }
 

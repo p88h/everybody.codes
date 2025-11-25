@@ -1,0 +1,79 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug: Current Event/Quest",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=everybody_codes",
+                    "--package=everybody_codes"
+                ],
+                "filter": {
+                    "name": "everybody_codes",
+                    "kind": "bin"
+                }
+            },
+            "args": ["${fileDirnameBasename}", "${fileBasenameNoExtension}"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug: All Solutions",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=everybody_codes",
+                    "--package=everybody_codes"
+                ],
+                "filter": {
+                    "name": "everybody_codes",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Run: Current Event/Quest (Release)",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--release",
+                    "--bin=everybody_codes",
+                    "--package=everybody_codes"
+                ],
+                "filter": {
+                    "name": "everybody_codes",
+                    "kind": "bin"
+                }
+            },
+            "args": ["${fileDirnameBasename}", "${fileBasenameNoExtension}"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Run: All Solutions (Release)",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--release",
+                    "--bin=everybody_codes",
+                    "--package=everybody_codes"
+                ],
+                "filter": {
+                    "name": "everybody_codes",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+}
