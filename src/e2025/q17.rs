@@ -54,9 +54,17 @@ impl Grid {
                 if min_radius <= max_radius {
                     radius_sums[min_radius] += self.data[y][x] as i32;
                     // record the radius in the high byte
+                    // since we only do this up to max_radius, this reduces the search space to just 
+                    // max-radius sized circle, rather than a square. 
+                    // Actual inputs will work with this assumption, but the biggest test example will not
+                    // (it crawls on the edges of the whole _grid_)
                     self.data[y][x] |= (min_radius as u16) << 8;
                 }
             }
+        }
+        // draw an extra 0-line to the bottom to simplify search - paths will never cross this line
+        for y in dy..self.height {
+            self.data[y][dx] &= 0xFF;
         }
         // this is used in part 1/2        
         radius_sums
@@ -114,7 +122,10 @@ pub fn part2(input: &str) -> String {
 
 pub fn part3(input: &str) -> String {
     let mut grid = Grid::new(input);
-    grid.compute_circles(70);
+    // this sacrifiices 4 pixels as border, any value between 1 and 8 seems safe
+    // higher value->faster, but can perhaps fail for some inputs
+    // at least 1 is needed to havee a border for search (alternatively, could also expand grid)
+    grid.compute_circles(grid.width/2 - 4);
     // minimum radius given start position and destination position is 5
     let mut rad = 5;
     let (dx, dy) = grid.center;
