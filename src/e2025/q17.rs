@@ -37,16 +37,20 @@ pub fn part2(input: &str) -> String {
     (idx * max).to_string()
 }
 
-fn bfsc(grid: &Vec<Vec<u8>>, start: (usize, usize), goal: (usize, usize)) -> Option<usize> {
+fn bfscd(grid: &Vec<Vec<u8>>, start: (usize, usize), goal1: (usize, usize), goal2: (usize, usize)) -> Vec<usize> {
     let mut queues: Vec<Vec<(usize, usize)>> = vec![Vec::new(); 1000];
     let mut visited = HashSet::new();
     queues[0].push(start);
     visited.insert(start);
+    let mut costs = vec![];
 
     for cost in 0..queues.len() {
         while let Some((x, y)) = queues[cost].pop() {
-            if (x, y) == goal {
-                return Some(cost);
+            if (x, y) == goal1 || (x, y) == goal2 {
+                costs.push(cost);
+                if costs.len() == 2 {
+                    return costs;
+                }
             }
             let directions = [(0isize, 1isize), (1, 0), (0, -1), (-1, 0)];
             for (dx, dy) in directions.iter() {
@@ -63,7 +67,7 @@ fn bfsc(grid: &Vec<Vec<u8>>, start: (usize, usize), goal: (usize, usize)) -> Opt
             }
         }
     }
-    None
+    costs
 }
 
 pub fn part3(input: &str) -> String {
@@ -80,19 +84,16 @@ pub fn part3(input: &str) -> String {
     let mut rad = 5;
     loop {
         paint_circle(&mut char_grid, (dx, dy), rad);
-        let left = bfsc(&char_grid, (sx, sy), (dx - 1, dy + rad + 1));
-        let right = bfsc(&char_grid, (sx, sy), (dx + 1, dy + rad + 1));
-        if left.is_some() && right.is_some() {
-            let left_cost = left.unwrap();
-            let right_cost = right.unwrap();
-            if left_cost + right_cost > rad * 30 + 29 {
-                while left_cost + right_cost > rad * 30 + 29 {
+        let costs = bfscd(&char_grid, (sx, sy), (dx - 1, dy + rad + 1), (dx + 1, dy + rad + 1));
+        if costs.len() == 2 {
+            let cost = costs[0] + costs[1] + 9;
+            if cost > rad * 30 + 29 {
+                while cost > rad * 30 + 29 {
                     rad += 1;
                 }
                 continue;
             }
-            let total_cost = left_cost + right_cost + 9;
-            return (rad * total_cost).to_string();
+            return (rad * cost).to_string();
         } else {
             rad += 1;
         }
