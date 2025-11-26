@@ -1,92 +1,128 @@
 use std::collections::HashSet;
 
-fn paint_circle(grid: &mut Vec<Vec<u8>>, center: (usize, usize), radius: usize) -> i32 {
-    let (dx, dy) = center;
-    let mut sum = 0;
-    for y in dy - radius..=dy + radius {
-        let y_part = (y - dy) * (y - dy);
-        for x in dx - radius..=dx + radius {
-            let x_part = (x - dx) * (x - dx);
-            let dist = x_part + y_part;
-            if dist <= radius * radius {
-                if grid[y][x] >= b'0' && grid[y][x] <= b'9' {
-                    sum += (grid[y][x] - b'0') as i32;
-                }
-                grid[y][x] = b'.';
-            }
-        }
-    }
-    sum
+struct Grid {
+    data: Vec<Vec<u16>>,
+    start: (usize, usize),
+    center: (usize, usize),
+    width: usize,
+    height: usize,
 }
 
-pub fn part1(input: &str) -> String {
-    let mut char_grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
-    paint_circle(&mut char_grid, (15, 15), 10).to_string()
-}
-
-pub fn part2(input: &str) -> String {
-    let mut char_grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
-    let (mut max, mut idx) = (0, 0);
-    for rad in 1..51 {
-        let sum = paint_circle(&mut char_grid, (50, 50), rad);
-        if sum > max {
-            max = sum;
-            idx = rad as i32;
-        }
-    }
-    (idx * max).to_string()
-}
-
-fn bfscd(grid: &Vec<Vec<u8>>, start: (usize, usize), goal1: (usize, usize), goal2: (usize, usize)) -> Vec<usize> {
-    let mut queues: Vec<Vec<(usize, usize)>> = vec![Vec::new(); 1000];
-    let mut visited = HashSet::new();
-    queues[0].push(start);
-    visited.insert(start);
-    let mut costs = vec![];
-
-    for cost in 0..queues.len() {
-        while let Some((x, y)) = queues[cost].pop() {
-            if (x, y) == goal1 || (x, y) == goal2 {
-                costs.push(cost);
-                if costs.len() == 2 {
-                    return costs;
+impl Grid {
+    fn new(input: &str) -> Grid {
+        let mut data = Vec::new();
+        let mut start = (0, 0);
+        let mut center = (0, 0);
+        for (y, line) in input.lines().enumerate() {
+            let mut row = Vec::new();
+            for (x, ch) in line.bytes().enumerate() {
+                match ch {
+                    b'S' => {
+                        start = (x, y);
+                        row.push(0);
+                    }
+                    b'@' => {
+                        center = (x, y);
+                        row.push(0);
+                    }
+                    b'0'..=b'9' => row.push((ch - b'0') as u16),
+                    _ => row.push(0),
                 }
             }
-            let directions = [(0isize, 1isize), (1, 0), (0, -1), (-1, 0)];
-            for (dx, dy) in directions.iter() {
-                let nx = x as isize + dx;
-                let ny = y as isize + dy;
-                if nx >= 0 && ny >= 0 && (ny as usize) < grid.len() && (nx as usize) < grid[ny as usize].len() {
-                    let npos = (nx as usize, ny as usize);
-                    if !visited.contains(&npos) && grid[ny as usize][nx as usize] != b'.' {
-                        let new_cost = cost + (grid[ny as usize][nx as usize] - b'0') as usize;
+            data.push(row);
+        }
+        let width = data[0].len();
+        let height = data.len();
+        Grid { data, start, center, width, height }
+    }
+
+    fn compute_circles(self: &mut Self, max_radius: usize) -> Vec<i32> {
+        let (dx, dy) = self.center;
+        let mut radius_sums = vec![0; max_radius + 1];        
+        for y in dy.saturating_sub(max_radius)..=(dy + max_radius).min(self.height - 1) {
+            let y_part = ((y as isize - dy as isize) * (y as isize - dy as isize)) as usize;
+            for x in dx.saturating_sub(max_radius)..=(dx + max_radius).min(self.width - 1) {
+                let x_part = ((x as isize - dx as isize) * (x as isize - dx as isize)) as usize;
+                let dist_sq = x_part + y_part;
+                
+                // Find the minimum radius at which this pixel is included
+                // A pixel at distance_squared d is included when radius^2 >= d
+                // So minimum radius is ceil(sqrt(d))
+                let dist = (dist_sq as f64).sqrt();
+                let min_radius = dist.ceil() as usize;
+                
+                if min_radius <= max_radius {
+                    radius_sums[min_radius] += self.data[y][x] as i32;
+                    // record the radius in the high byte
+                    self.data[y][x] |= (min_radius as u16) << 8;
+                }
+            }
+        }
+        // this is used in part 1/2        
+        radius_sums
+    }
+
+    fn search(self: &Self, goal1: (usize, usize), goal2: (usize, usize), radius: usize) -> Vec<usize> {
+        let mut queues: Vec<Vec<(usize, usize)>> = vec![Vec::new(); 1000];
+        let mut visited = HashSet::new();
+        queues[0].push(self.start);
+        visited.insert(self.start);
+        let mut costs = vec![];
+
+        for cost in 0..queues.len() {
+            while let Some((x, y)) = queues[cost].pop() {
+                if (x, y) == goal1 || (x, y) == goal2 {
+                    costs.push(cost);
+                    if costs.len() == 2 {
+                        return costs;
+                    }
+                }
+                let directions = [(0isize, 1isize), (1, 0), (0, -1), (-1, 0)];
+                for (dx, dy) in directions.iter() {
+                    let nx = (x as isize + dx) as usize;
+                    let ny = (y as isize + dy) as usize;
+                    // no border checks - the radius grid will have a border
+                    let npos = (nx, ny);            
+                    // if the cell was claimed below current radius, skip
+                    if self.data[ny][nx] >> 8 <= radius as u16 {
+                        continue;
+                    }
+                    if !visited.contains(&npos) {
+                        let new_cost = cost + (self.data[ny][nx] & 0xFF) as usize;
                         queues[new_cost].push(npos);
                         visited.insert(npos);
                     }
                 }
             }
         }
+        costs
     }
-    costs
+
+}
+
+pub fn part1(input: &str) -> String {
+    let mut grid = Grid::new(input);
+    grid.compute_circles(10).iter().sum::<i32>().to_string()
+}
+
+pub fn part2(input: &str) -> String {
+    let mut grid = Grid::new(input);
+    let radius_sums = grid.compute_circles(50);
+    let (idx, max) = radius_sums.iter().enumerate().max_by_key(|&(_, v)| v).unwrap();
+    (idx as i32 * max).to_string()
 }
 
 pub fn part3(input: &str) -> String {
-    let mut char_grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
-    let (sx, sy) = (75, 10);
-    let (dx, dy) = (75, 75);
-    assert!(char_grid[sy][sx] == b'S');
-    assert!(char_grid[dy][dx] == b'@');
-    char_grid[sy][sx] = b'.';
-    for y in 75..char_grid.len() {
-        char_grid[y][sx] = b'.';
-    }
+    let mut grid = Grid::new(input);
+    grid.compute_circles(70);
     // minimum radius given start position and destination position is 5
     let mut rad = 5;
+    let (dx, dy) = grid.center;
     loop {
-        paint_circle(&mut char_grid, (dx, dy), rad);
-        let costs = bfscd(&char_grid, (sx, sy), (dx - 1, dy + rad + 1), (dx + 1, dy + rad + 1));
+        // Create a fresh copy and apply painting up to current radius       
+        let costs = grid.search((dx - 1, dy + rad + 1), (dx + 1, dy + rad + 1), rad);
         if costs.len() == 2 {
-            let cost = costs[0] + costs[1] + 9;
+            let cost = costs[0] + costs[1] + (grid.data[dy + rad + 1][dx] & 0xFF) as usize;
             if cost > rad * 30 + 29 {
                 while cost > rad * 30 + 29 {
                     rad += 1;
@@ -95,6 +131,7 @@ pub fn part3(input: &str) -> String {
             }
             return (rad * cost).to_string();
         } else {
+            // this should not happen, but just in case
             rad += 1;
         }
     }
