@@ -1,44 +1,63 @@
+fn expand_merge_gaps(cur: &mut Vec<(i32, i32, i32)>, next: &Vec<(i32, i32, i32)>) {
+    let dx = next[0].0 - cur[0].0;
+    // expand all ranges in cur by dx up and down
+    for (x, y1, y2) in cur.iter_mut() {
+        *y1 = (*y1 - dx).max(0);
+        *y2 += dx;
+    }
+    // merge overlapping ranges in cur
+    let mut merged = vec![];
+    for (x, y1, y2) in cur.iter() {
+        if let Some((_, my1, my2)) = merged.last_mut() {
+            if *y1 <= *my2 {
+                *my2 = (*my2).max(*y2);
+                continue;
+            }
+        }
+        merged.push((*x, *y1, *y2));
+    }
+    // intersect merged with next into cur
+    cur.clear();
+    let mut mi = 0;
+    for (x, y1, y2) in merged.iter() {
+        // skip until we reach possible overlap
+        while mi < next.len() && next[mi].2 < *y1 {
+            mi += 1;
+        }
+        if mi >= next.len() {
+            break;
+        }
+        // next[mi] may overlap with y1..y2. Put overlapping part into cur
+        let ny1 = next[mi].1.max(*y1);
+        let ny2 = next[mi].2.min(*y2);
+        if ny1 <= ny2 {
+            cur.push((next[mi].0, ny1, ny2));
+        } 
+        // the rest of next[mi] may overlap with further ranges, so continue checking
+    }
+}
+
 pub fn part1(input: &str) -> String {
     let gaps: Vec<(i32, i32, i32)> = input.lines().map(|line| {
         let nums = line.split(',').map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>();
         (nums[0], nums[1], nums[2]+nums[1]-1)
     }).collect();
-    // states are (x, y, cost). We start at 0 (floor) with cost 0
+    // reachable ranges at each gap x, start from 0-0 at x=0
     let mut next = vec![(0, 0, 0)];
-    let mut cur = vec![];
+    let mut cur = vec![(0, 0, 0)];
     let mut cx = 0;
     for (gx, gy1, gy2) in gaps.iter() {
         if cx != *gx {
-            cur = next;
-            next = vec![];
+            expand_merge_gaps(&mut cur, &next);
+            next.clear();
             cx = *gx;
         }
-        for gy in *gy1..=*gy2 {
-            let mut min_cost = i32::MAX;
-            for (x, y, cost) in cur.iter() {
-                let dx = gx - x;
-                let xm = dx % 2;
-                // we can only move diagonally at each x, so parity must match
-                if (y + xm) % 2 != gy % 2 {
-                    continue;
-                }
-                let dy = (gy - y).abs();
-                // we cannot move by more than dx in y direction
-                if dx < dy {
-                    continue;
-                }
-                // downward moves are free, so we need to cover cost of moving up + half of horizontal moves
-                let up_cost = if gy > *y { gy - *y } else { 0 };
-                let horiz_cost = (dx - dy) / 2;
-                let total_cost = cost + up_cost + horiz_cost;
-                min_cost = min_cost.min(total_cost);                
-            }
-            if min_cost != i32::MAX {
-                next.push((*gx, gy, min_cost));
-            }
-        }
+        // add the gap range to next
+        next.push((*gx, *gy1, *gy2));
     }
-    cur.iter().map(|(_, _, cost)| *cost).min().unwrap().to_string()
+    expand_merge_gaps(&mut cur, &next);
+    let miny = cur.iter().map(|(_, y1, _)| *y1).min().unwrap();
+    ((cur[0].0 + miny + 1) / 2).to_string()
 }
 
 pub fn part2(input: &str) -> String {
