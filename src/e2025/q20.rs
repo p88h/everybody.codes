@@ -72,18 +72,21 @@ pub fn part2(input: &str) -> String {
 }
 
 
-fn rotate_triangle_120(grid: &Vec<Vec<u8>>) -> Vec<Vec<u8>>{
+fn rotate_triangle_120(grid: &Vec<Vec<u8>>) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
     // grid contains triangle pointing down
     // after rotation the top edge becomes the right edge
     let height = grid.len();
     let width = grid[0].len();
-    let mut new_grid = vec![vec![b'.'; width]; height];
+    let mut new_grid1 = vec![vec![b'.'; width]; height];
+    let mut new_grid2 = vec![vec![b'.'; width]; height];
     for y in 0..height {        
         // the row spans from y to width-y, but first & last y cols are already rotated
         let mut e1 = vec![];
         for x in y*3..width-y*3 {
             e1.push((x,y));
-            new_grid[y][x] = grid[y][x];
+            // this takes care of center cells really
+            new_grid1[y][x] = grid[y][x];
+            new_grid2[y][x] = grid[y][x];
         }
         if e1.len() < 2 {
             break;
@@ -119,10 +122,11 @@ fn rotate_triangle_120(grid: &Vec<Vec<u8>>) -> Vec<Vec<u8>>{
             let (x1, y1) = e1[i];
             let (x2, y2) = e2[i];
             let (x3, y3) = e3[i];
-            (new_grid[y2][x2], new_grid[y3][x3], new_grid[y1][x1]) = (grid[y1][x1], grid[y2][x2], grid[y3][x3]);
+            (new_grid1[y2][x2], new_grid1[y3][x3], new_grid1[y1][x1]) = (grid[y1][x1], grid[y2][x2], grid[y3][x3]);
+            (new_grid2[y3][x3], new_grid2[y1][x1], new_grid2[y2][x2]) = (grid[y1][x1], grid[y2][x2], grid[y3][x3]);
         }
     }
-    new_grid
+    (new_grid1, new_grid2)
 }
 
 pub fn part3(input: &str) -> String {
@@ -137,8 +141,7 @@ pub fn part3(input: &str) -> String {
             }
         }
     }
-    let grid2 = rotate_triangle_120(&grid);
-    let grid3 = rotate_triangle_120(&grid2);
+    let (grid2, grid3) = rotate_triangle_120(&grid);
     let grids = vec![grid, grid2, grid3];
     let mut visited = vec![vec![false; width * 3]; height];
     let mut queue = VecDeque::new();
@@ -225,8 +228,8 @@ T####T#TTT##T##T#T#
             b".678.".to_vec(),
             b"..9..".to_vec(),
         ];
-        let rotated = rotate_triangle_120(&mut grid);
-        assert_eq!(rotated, vec![
+        let (rotated1, rotated2) = rotate_triangle_120(&mut grid);
+        assert_eq!(rotated1, vec![
             b"97621".to_vec(),
             b".843.".to_vec(),
             b"..5..".to_vec(),
@@ -242,7 +245,7 @@ T####T#TTT##T##T#T#
             b"..DEF..".to_vec(),
             b"...G...".to_vec(),
         ];
-        let rotated = rotate_triangle_120(&mut grid);
+        let (rotated, _) = rotate_triangle_120(&mut grid);
         assert_eq!(rotated, vec![
             b"GED9821".to_vec(),
             b".FBA43.".to_vec(),
@@ -260,7 +263,7 @@ T####T#TTT##T##T#T#
             b"...MNO...".to_vec(),
             b"....P....".to_vec(),
         ];
-        let rotated = rotate_triangle_120(&mut grid);
+        let (rotated, _) = rotate_triangle_120(&mut grid);
         assert_eq!(rotated, vec![
             b"PNMIHBA21".to_vec(),
             b".OKjdc43.".to_vec(),
