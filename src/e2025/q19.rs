@@ -1,14 +1,14 @@
 fn expand_merge_gaps(cur: &mut Vec<(i32, i32, i32)>, next: &Vec<(i32, i32, i32)>) {
     let dx = next[0].0 - cur[0].0;
     // expand all ranges in cur by dx up and down
-    for (x, y1, y2) in cur.iter_mut() {
+    for (_, y1, y2) in cur.iter_mut() {
         *y1 = (*y1 - dx).max(0);
         *y2 += dx;
     }
     // merge overlapping ranges in cur
     let mut merged = vec![];
     for (x, y1, y2) in cur.iter() {
-        if let Some((_, my1, my2)) = merged.last_mut() {
+        if let Some((_, _, my2)) = merged.last_mut() {
             if *y1 <= *my2 {
                 *my2 = (*my2).max(*y2);
                 continue;
@@ -19,7 +19,7 @@ fn expand_merge_gaps(cur: &mut Vec<(i32, i32, i32)>, next: &Vec<(i32, i32, i32)>
     // intersect merged with next into cur
     cur.clear();
     let mut mi = 0;
-    for (x, y1, y2) in merged.iter() {
+    for (_, y1, y2) in merged.iter() {
         // skip until we reach possible overlap
         while mi < next.len() && next[mi].2 < *y1 {
             mi += 1;
