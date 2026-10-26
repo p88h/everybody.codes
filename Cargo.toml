@@ -5,12 +5,16 @@ edition = "2024"
 default-run = "everybody_codes"
 
 [dependencies]
+aes = "0.9.3"
+cbc = { version = "0.2.1", features = ["alloc"] }
 hungarian = "1.1.1"
 itertools = "0.15.0"
 num-bigint = "0.5.1"
 num-complex = "0.4.6"
 num-traits = "0.2.19"
 rayon = "1.12.0"
+serde_json = "1.0.154"
+ureq = "3.5.0"
 wide = "1.7.1"
 
 [dev-dependencies]

@@ -1,8 +1,23 @@
+mod download;
+
+use std::path::Path;
 use std::time::Instant;
 
 fn read_input(event: i32, quest: i32, part: i32) -> String {
     let path = format!("input/everybody_codes_e{event}_q{quest:02}_p{part}.txt");
-    std::fs::read_to_string(path).unwrap_or_default()
+    if let Ok(notes) = std::fs::read_to_string(&path) {
+        return notes;
+    }
+    match download::download_to(event, quest, part, Path::new(&path)) {
+        Ok(notes) => {
+            eprintln!("Downloaded {path}");
+            notes
+        }
+        Err(err) => {
+            eprintln!("Missing {path}, download failed: {err}");
+            String::new()
+        }
+    }
 }
 
 fn maybe_parse_arg(args: &Vec<String>, pos: usize, default: i32) -> i32 {
