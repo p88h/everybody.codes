@@ -98,6 +98,7 @@ pub fn part2(input: &str) -> String {
         }
         di = (di + 1) % 4;
     }
+    /*
         // clear terminal
         print!("\x1B[2J\x1B[1;1H");
         // print current position, direction, and steps
@@ -115,6 +116,7 @@ pub fn part2(input: &str) -> String {
             }
             println!();
         }
+     */
     stack.len().to_string()
 }
 
