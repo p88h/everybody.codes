@@ -228,7 +228,7 @@ T####T#TTT##T##T#T#
             b".678.".to_vec(),
             b"..9..".to_vec(),
         ];
-        let (rotated1, rotated2) = rotate_triangle_120(&mut grid);
+        let (rotated1, _rot2) = rotate_triangle_120(&mut grid);
         assert_eq!(rotated1, vec![
             b"97621".to_vec(),
             b".843.".to_vec(),
