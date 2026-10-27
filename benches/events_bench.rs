@@ -6,7 +6,7 @@ fn read_input(event: i32, quest: i32, part: i32) -> String {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let solutions = everybody_codes::e2025();
+    let solutions = everybody_codes::e2026();
     for sol in solutions {
         let input1 = read_input(sol.event, sol.quest, 1);
         let input2 = read_input(sol.event, sol.quest, 2);
