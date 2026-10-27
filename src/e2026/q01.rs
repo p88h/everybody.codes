@@ -1,16 +1,17 @@
-use crate::algo::binary_search::*;
-
-fn nearest(a: i64, s: i64, g: fn(i64) -> i64) -> i64 {
-    g(lower_bound(s, a, g)) - a
-}
-
 fn read_nums(input: &str) -> Vec<i64> {
     input.split(',').map(|s| s.parse::<i64>().unwrap()).collect::<Vec<i64>>()
 }
 
+// input is sorted, so resume the linear scan from the previous result
 fn solve(input: &str, s: i64, g: fn(i64) -> i64) -> String {
-    let nums = read_nums(input);
-    let res: i64 = nums.iter().map(|&n| nearest(n, s, g)).sum();
+    let mut n = s;
+    let mut res: i64 = 0;
+    for a in read_nums(input) {
+        while g(n) < a {
+            n += 1;
+        }
+        res += g(n) - a;
+    }
     res.to_string()
 }
 
