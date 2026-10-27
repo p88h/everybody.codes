@@ -1,18 +1,16 @@
-fn nearest(a: i32, s: i32, g: fn(i32) -> i32) -> i32 {
-    let mut n = s;
-    while g(n) < a {
-        n += 1;
-    }
-    g(n) - a
+use crate::algo::binary_search::*;
+
+fn nearest(a: i64, s: i64, g: fn(i64) -> i64) -> i64 {
+    g(lower_bound(s, a, g)) - a
 }
 
-fn read_nums(input: &str) -> Vec<i32> {
-    input.split(',').map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>()
+fn read_nums(input: &str) -> Vec<i64> {
+    input.split(',').map(|s| s.parse::<i64>().unwrap()).collect::<Vec<i64>>()
 }
 
-fn solve(input: &str, s: i32, g: fn(i32) -> i32) -> String {
+fn solve(input: &str, s: i64, g: fn(i64) -> i64) -> String {
     let nums = read_nums(input);
-    let res: i32 = nums.iter().map(|&n| nearest(n, s, g)).sum();
+    let res: i64 = nums.iter().map(|&n| nearest(n, s, g)).sum();
     res.to_string()
 }
 

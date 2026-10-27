@@ -1,4 +1,5 @@
 pub mod algo {
+    pub mod binary_search;
     pub mod math;
     pub mod union_find;
     pub mod strings;
