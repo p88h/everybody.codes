@@ -1,5 +1,3 @@
-use rayon::prelude::*;
-
 // Returns (number, weights); weights are already pre-computed with position-powers
 fn parse(line: &str) -> (u64, Vec<u64>) {
     let (iso, rhs) = line.split_once(' ').unwrap();
@@ -27,15 +25,32 @@ pub fn part2(input: &str) -> String {
     total.to_string()
 }
 
+// Smallest number whose digits score `target`: digits are chosen from the most significant
+// position down, smallest first, skipping digits that leave a remainder the lower
+// positions can't reach (`ceil[k]` is the maximum score of positions below k).
+fn smallest(k: usize, target: u64, weights: &[u64], ceil: &[u64]) -> Option<u64> {
+    (0..=9)
+        .take_while(|&d| d * weights[k] <= target)
+        .filter(|&d| target - d * weights[k] <= ceil[k])
+        .find_map(|d| {
+            let rest = target - d * weights[k];
+            if k == 0 {
+                Some(d)
+            } else {
+                smallest(k - 1, rest, weights, ceil).map(|r| d * 10u64.pow(k as u32) + r)
+            }
+        })
+}
+
 pub fn part3(input: &str) -> String {
-    let lines: Vec<&str> = input.lines().collect();
-    let total: u64 = lines
-        .par_iter()
+    let total: u64 = input
+        .lines()
         .map(|line| {
             let (number, weights) = parse(line);
             let target = score(number, &weights);
+            let ceil: Vec<u64> = weights.iter().scan(0, |sum, w| Some(std::mem::replace(sum, *sum + 9 * w))).collect();
             // only counts when no smaller number gives the same score
-            if (0..number).any(|c| score(c, &weights) == target) { 0 } else { target }
+            if smallest(weights.len() - 1, target, &weights, &ceil) == Some(number) { target } else { 0 }
         })
         .sum();
     total.to_string()
