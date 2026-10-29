@@ -1,7 +1,7 @@
 mod download;
 
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 fn read_input(event: i32, quest: i32, part: i32) -> String {
     let path = format!("input/everybody_codes_e{event}_q{quest:02}_p{part}.txt");
@@ -35,30 +35,46 @@ fn maybe_parse_arg(args: &Vec<String>, pos: usize, default: i32) -> i32 {
     return args[pos].parse().unwrap_or(-1);
 }
 
-fn run_part(event: i32, quest: i32, part: i32, func: fn(&str) -> String) -> (String, String) {
+fn run_part(event: i32, quest: i32, part: i32, func: fn(&str) -> String) -> (String, Duration) {
     let input = read_input(event, quest, part);
     let start = Instant::now();
     let result = func(&input);
-    for _ in 0..9 {
-        let other = func(&input);
-        if other != result {
-            panic!(
-                "Inconsistent results for event {}, quest {}, part {}: '{}' vs '{}'",
-                event, quest, part, result, other
-            );
+    let mut loops = 10;
+    let mut done_loops = 1;
+    loop {
+        for _ in 0..loops {
+            let other = func(&input);
+            if other != result {
+                panic!(
+                    "Inconsistent results for event {}, quest {}, part {}: '{}' vs '{}'",
+                    event, quest, part, result, other
+                );
+            }
         }
-    }
-    let duration = start.elapsed() / 10;
+        done_loops += loops;
+        if start.elapsed() >= Duration::from_millis(100) {
+            break;
+        }
+        if start.elapsed() < Duration::from_millis(1) {
+            loops *= 10;
+        }
+    } 
+    // println!("Event {} Quest {} Part {} Loops: {}", event, quest, part, done_loops);
+    let duration = start.elapsed() / done_loops;
+    (result, duration)
+}
+
+fn fmt_duration(duration: Duration) -> String {
     // auto format duration
     if duration.as_nanos() < 1_000 {
-        (result, format!("({} ns)", duration.as_nanos()))
+        format!("{} ns", duration.as_nanos())
     } else if duration.as_micros() < 1_000 {
-        (result, format!("({} µs)", duration.as_micros()))
+        format!("{} µs", duration.as_micros())
     } else if duration.as_millis() < 1_000 {
-        (result, format!("({} ms)", duration.as_millis()))
+        format!("{} ms", duration.as_millis())
     } else {
-        (result, format!("({} s)", duration.as_secs_f64()))
-    }
+        format!("{} s", duration.as_secs_f64())
+    }    
 }
 
 fn main() {
@@ -66,6 +82,7 @@ fn main() {
     let solutions = everybody_codes::solutions();
     let event = maybe_parse_arg(&args, 1, solutions[solutions.len() - 1].event);
     let quest = maybe_parse_arg(&args, 2, -1);
+    let mut total = Duration::new(0, 0);
     for sol in solutions {
         if (event != -1 && sol.event != event) || (quest != -1 && sol.quest != quest) {
             continue;
@@ -78,6 +95,9 @@ fn main() {
         } else {
             format!("Story {:04} Quest {:02}", sol.event, sol.quest)
         };
-        println!("{label} Part 1: {r1:16} {d1:8}  Part 2: {r2:16} {d2:8}  Part 3: {r3:16} {d3:8}");
+        println!("{label}: {} / {} / {}", fmt_duration(d1), fmt_duration(d2), fmt_duration(d3));
+        println!("Part 1: {r1:16} Part 2: {r2:16} Part 3: {r3:16}");
+        total += d1 + d2 + d3;
     }
+    println!("Total: {}", fmt_duration(total));
 }
