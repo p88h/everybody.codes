@@ -28,20 +28,21 @@ pub fn part2(input: &str) -> String {
 // Smallest number whose digits score `target`: digits are chosen from the most significant
 // position down, smallest first, skipping digits that leave a remainder the lower
 // positions can't reach (`ceil[k]` is the maximum score of positions below k).
-fn smallest(k: usize, target: u64, weights: &[u64], ceil: &[u64]) -> Option<u64> {
+fn smallest(k: usize, place: u64, target: u64, weights: &[u64], ceil: &[u64]) -> Option<u64> {
+    let w = weights[k];
     for d in 0..=9 {
-        if d * weights[k] > target {
+        if d * w > target {
             break;
         }
-        let rest = target - d * weights[k];
+        let rest = target - d * w;
         if rest > ceil[k] {
             continue;
         }
         if k == 0 {
             return Some(d);
         }
-        if let Some(low) = smallest(k - 1, rest, weights, ceil) {
-            return Some(d * 10u64.pow(k as u32) + low);
+        if let Some(low) = smallest(k - 1, place / 10, rest, weights, ceil) {
+            return Some(d * place + low);
         }
     }
     None
@@ -53,9 +54,14 @@ pub fn part3(input: &str) -> String {
         .map(|line| {
             let (number, weights) = parse(line);
             let target = score(number, &weights);
-            let ceil: Vec<u64> = weights.iter().scan(0, |sum, w| Some(std::mem::replace(sum, *sum + 9 * w))).collect();
+            let mut ceil = [0u64; 10];
+            for k in 1..weights.len() {
+                ceil[k] = ceil[k - 1] + 9 * weights[k - 1];
+            }
+            let top = weights.len() - 1;
+            let place = 10u64.pow(top as u32);
             // only counts when no smaller number gives the same score
-            if smallest(weights.len() - 1, target, &weights, &ceil) == Some(number) { target } else { 0 }
+            if smallest(top, place, target, &weights, &ceil) == Some(number) { target } else { 0 }
         })
         .sum();
     total.to_string()
