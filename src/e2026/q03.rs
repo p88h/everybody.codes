@@ -29,17 +29,22 @@ pub fn part2(input: &str) -> String {
 // position down, smallest first, skipping digits that leave a remainder the lower
 // positions can't reach (`ceil[k]` is the maximum score of positions below k).
 fn smallest(k: usize, target: u64, weights: &[u64], ceil: &[u64]) -> Option<u64> {
-    (0..=9)
-        .take_while(|&d| d * weights[k] <= target)
-        .filter(|&d| target - d * weights[k] <= ceil[k])
-        .find_map(|d| {
-            let rest = target - d * weights[k];
-            if k == 0 {
-                Some(d)
-            } else {
-                smallest(k - 1, rest, weights, ceil).map(|r| d * 10u64.pow(k as u32) + r)
-            }
-        })
+    for d in 0..=9 {
+        if d * weights[k] > target {
+            break;
+        }
+        let rest = target - d * weights[k];
+        if rest > ceil[k] {
+            continue;
+        }
+        if k == 0 {
+            return Some(d);
+        }
+        if let Some(low) = smallest(k - 1, rest, weights, ceil) {
+            return Some(d * 10u64.pow(k as u32) + low);
+        }
+    }
+    None
 }
 
 pub fn part3(input: &str) -> String {
