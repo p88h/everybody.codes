@@ -9,40 +9,32 @@ fn parse_line(line: &str) -> (i32, i32, i32, i32) {
 
 // Checksum of position * value + same-score skipping
 fn checksum(items: &[(i32, i32)]) -> String {
-    let sum: i32 = items
-        .iter()
-        .map(|&(key, value)| (1 + items.iter().filter(|&&(other, _)| other < key).count() as i32) * value)
-        .sum();
+    let mut sorted = items.to_vec();
+    sorted.sort_unstable();
+    let mut sum = 0;
+    let mut position = 0;
+    for (i, &(key, value)) in sorted.iter().enumerate() {
+        if i == 0 || key != sorted[i - 1].0 {
+            position = i as i32 + 1;
+        }
+        sum += position * value;
+    }
     sum.to_string()
 }
 
 pub fn part1(input: &str) -> String {
-    let lines: Vec<&str> = input.lines().collect();
-    let mut total_by_id = std::collections::HashMap::new();
-    for line in &lines {
-        let (id, _, _, time) = parse_line(line);
-        *total_by_id.entry(id).or_insert(0) += time;
-    }
-    let totals: Vec<(i32, i32)> = total_by_id.values().map(|&time| (time, time)).collect();
-    checksum(&totals)
+    part2(input)
 }
 
 pub fn part2(input: &str) -> String {
     let lines: Vec<&str> = input.lines().collect();
-    let mut total_by_id = std::collections::HashMap::new();
-    let mut count_by_id = std::collections::HashMap::new();
+    let mut total_by_id = vec![100000000; 256];
     for line in &lines {
         let (id, _, _, time) = parse_line(line);
-        *total_by_id.entry(id).or_insert(0) += time;
-        *count_by_id.entry(id).or_insert(0) += 1;
-    }
-    let max_count = count_by_id.values().cloned().max().unwrap_or(0);
-    // increase the total time for IDs that have less the maximum count
-    for (&id, &count) in &count_by_id {
-        *total_by_id.entry(id).or_insert(0) += 1000000 * (max_count - count) as i32;
+        total_by_id[(id - 1) as usize] += time - 1000000;
     }
     // ignore the added penalty when computing the checksum
-    let totals: Vec<(i32, i32)> = total_by_id.values().map(|&time| (time, time % 1000000)).collect();
+    let totals: Vec<(i32, i32)> = total_by_id.iter().map(|&time| (time, time % 1000000)).collect();
     checksum(&totals)
 }
 
@@ -52,21 +44,21 @@ pub fn part3(input: &str) -> String {
     for line in &lines {
         entries.push(parse_line(line));
     }
-    let mut time_by_quest_and_id = std::collections::HashMap::new();
-    let mut score_by_id = std::collections::HashMap::new();
+    let mut time_by_quest_and_id = vec![0; 256*20];
+    let mut score_by_id = vec![0; 256];
     for part in 1..=3 {
         // accumulate time from previous parts for the same quest and id
         let mut part_entries: Vec<(i32, i32, i32, i32)> = entries
             .iter()
             .filter(|&&(_, _, p, _)| p == part)
             .map(|&(id, quest, p, time)| {
-                let total = time_by_quest_and_id.entry((quest, id)).or_insert(0);
-                *total += time;
-                (id, quest, p, *total)
+                let idx = ((id - 1) * 20 + quest - 1) as usize;
+                time_by_quest_and_id[idx] += time;
+                (id, quest, p, time_by_quest_and_id[idx])
             })
             .collect();
         // sort by quest and then cumulative time
-        part_entries.sort_by_key(|&(_, quest, _, time)| (quest, time));
+        part_entries.sort_by_key(|&(_, _, _, time)| time);
         // keep best time for each quest, just 30 zeroes
         let mut best_times = vec![0; 30];
         let mut quest_score = vec![0; 30];
@@ -77,12 +69,12 @@ pub fn part3(input: &str) -> String {
                 best_times[quest as usize] = time;
                 quest_score[quest as usize] = (50 * part - quest_done[quest as usize]).max(0);
             }
-            quest_done[quest as usize] += 1;
-            *score_by_id.entry(id).or_insert(0) += quest_score[quest as usize];
+            quest_done[quest as usize] += 1;            
+            score_by_id[(id - 1) as usize] += quest_score[quest as usize];
             // println!("id={} quest={} part={} time={} score={}", id, quest, part, time, quest_score[quest as usize]);
         }
     }
-    let scores: Vec<(i32, i32)> = score_by_id.values().map(|&points| (-points, points)).collect();
+    let scores: Vec<(i32, i32)> = score_by_id.iter().map(|&points| (-points, points)).collect();
     checksum(&scores)
 }
 
