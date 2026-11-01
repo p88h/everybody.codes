@@ -65,16 +65,18 @@ fn run_part(event: i32, quest: i32, part: i32, func: fn(&str) -> String) -> (Str
 }
 
 fn fmt_duration(duration: Duration) -> String {
-    // auto format duration
-    if duration.as_nanos() < 1_000 {
-        format!("{} ns", duration.as_nanos())
-    } else if duration.as_micros() < 1_000 {
-        format!("{} µs", duration.as_micros())
-    } else if duration.as_millis() < 1_000 {
-        format!("{} ms", duration.as_millis())
+    // 4 significant characters; switch to the larger unit once the value reaches 0.10
+    let nanos = duration.as_nanos() as f64;
+    let units = [("ns", 1.0), ("µs", 1e3), ("ms", 1e6), ("s", 1e9)];
+    let (unit, scale) = units.iter().rev().find(|(_, s)| nanos / s >= 0.1).copied().unwrap_or(units[0]);
+    let v = nanos / scale;
+    if v < 9.995 {
+        format!("{v:.2} {unit}")
+    } else if v < 99.95 {
+        format!("{v:.1} {unit}")
     } else {
-        format!("{} s", duration.as_secs_f64())
-    }    
+        format!("{v:.0} {unit}")
+    }
 }
 
 fn main() {
