@@ -136,9 +136,9 @@ fn plant_trees(g: &mut Grid) {
 }
 
 // One simultaneous growth step: land with at least 4 tree neighbors and no sand neighbors becomes a tree.
-fn grow_forest(g: &mut Grid) {
+// Sand never changes during forest growth, so its neighbor counts are computed once by the caller.
+fn grow_forest(g: &mut Grid, sand_count: &[u8]) {
     let tree_count = count_neighbors(g, b'@');
-    let sand_count = count_neighbors(g, b'=');
     for idx in 0..g.d.len() {
         if g.d[idx] == b'#' && tree_count[idx] >= 4 && sand_count[idx] == 0 {
             g.d[idx] = b'@';
@@ -152,8 +152,9 @@ pub fn part3(input: &str) -> String {
     let sand = make_sand(&mut g);
     grow(&mut g, sand, b'=', b'=', |c| c == b'#');
     plant_trees(&mut g);
-    grow_forest(&mut g);
-    grow_forest(&mut g);
+    let sand_count = count_neighbors(&g, b'=');
+    grow_forest(&mut g, &sand_count);
+    grow_forest(&mut g, &sand_count);
     g.d.iter().filter(|&&c| c == b'@').count().to_string()
 }
 
