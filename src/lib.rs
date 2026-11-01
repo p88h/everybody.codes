@@ -1,5 +1,6 @@
 pub mod algo {
     pub mod binary_search;
+    pub mod bitplane;
     pub mod math;
     pub mod union_find;
     pub mod strings;

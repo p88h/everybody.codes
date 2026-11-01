@@ -1,3 +1,5 @@
+use crate::algo::bitplane::BitGrid;
+
 // Flat grid with a 1-cell border of zero bytes, so neighbor lookups never need bounds checks.
 struct Grid {
     d: Vec<u8>,
@@ -7,9 +9,13 @@ struct Grid {
 }
 
 impl Grid {
-    fn rows(&self) -> impl Iterator<Item = usize> {
+    fn rows(&self) -> impl ExactSizeIterator<Item = usize> {
         let (s, h) = (self.s, self.h);
-        (1..=h).map(move |i| i * s)
+        (1..h + 1).map(move |i| i * s)
+    }
+
+    fn row_slices(&self) -> impl ExactSizeIterator<Item = &[u8]> {
+        self.rows().map(|r| &self.d[r + 1..r + 1 + self.w])
     }
 
     fn offsets(&self) -> [isize; 8] {
@@ -47,6 +53,8 @@ fn count_neighbors(g: &Grid, what: u8) -> Vec<u8> {
     count
 }
 
+// plant looks two columns to either side
+const MAX_SHIFT: usize = 2;
 const ELIGIBLE: u8 = 0x80;
 
 // Per-cell growth state in one byte: the count of `precounted` neighbors in the low bits, plus the
@@ -103,21 +111,41 @@ pub fn part1(input: &str) -> String {
     make_land(&mut g).to_string()
 }
 
-fn make_sand(g: &mut Grid) -> Vec<usize> {
-    for c in g.d.iter_mut() {
-        if *c != b'#' && *c != 0 {
-            *c = b'.';
-        }
-    }
-    let water = count_neighbors(g, b'.');
+// Land cells (plane `land`) whose 5x5 neighborhood, minus corners, is entirely land.
+fn plant(land: &BitGrid) -> BitGrid {
+    let h3 = &(land & &land.shift_h(1)) & &land.shift_h(-1);
+    let h5 = &(&h3 & &land.shift_h(2)) & &land.shift_h(-2);
+    let wide = &(&h5 & &h5.shift_v(1)) & &h5.shift_v(-1);
+    let tall = &(&(&h3 & &h3.shift_v(1)) & &h3.shift_v(-1)) & &(&h3.shift_v(2) & &h3.shift_v(-2));
+    &(land & &wide) & &tall
+}
+
+// One simultaneous growth step: land cells with at least 4 tree neighbors and no sand neighbors become trees.
+fn forest_step(trees: &mut BitGrid, cand: &mut BitGrid, nosand: &BitGrid) {
+    let (l, r) = (trees.shift_h(1), trees.shift_h(-1));
+    // horizontal 3-sums as 2-bit numbers (s1 s0); the cell itself is never a tree for candidates
+    let (t, lw, rw) = (trees.words(), l.words(), r.words());
+    let s0 = trees.from_fn(|i| t[i] ^ lw[i] ^ rw[i]);
+    let s1 = trees.from_fn(|i| (t[i] & lw[i]) | (t[i] & rw[i]) | (lw[i] & rw[i]));
+    let (p0, n0) = (s0.shift_v(1), s0.shift_v(-1));
+    let (p1, n1) = (s1.shift_v(1), s1.shift_v(-1));
+    let (s0, s1, p0, n0, p1, n1) = (s0.words(), s1.words(), p0.words(), n0.words(), p1.words(), n1.words());
+    // total = bit0 + 2 * (p1 + s1 + n1 + carry): at least 4 iff two of those weight-2 bits are set
+    let ge2 = trees.from_fn(|i| {
+        let carry = (p0[i] & s0[i]) | (p0[i] & n0[i]) | (s0[i] & n0[i]);
+        let (a, b, c, d) = (p1[i], s1[i], n1[i], carry);
+        (a & b) | (c & d) | ((a | b) & (c | d))
+    });
+    let new = &(&*cand & &ge2) & nosand;
+    *trees |= &new;
+    *cand = &*cand & &!&new;
+}
+
+fn make_sand(g: &Grid) -> Vec<usize> {
+    let land = BitGrid::from_rows(g.w, MAX_SHIFT, g.row_slices(), |c| c == b'#');
+    let water = BitGrid::from_rows(g.w, MAX_SHIFT, g.row_slices(), |c| c != b'#').dilate();
     let mut sand = Vec::new();
-    for row in g.rows() {
-        for idx in row + 1..row + 1 + g.w {
-            if g.d[idx] == b'#' && water[idx] > 0 {
-                sand.push(idx);
-            }
-        }
-    }
+    (&land & &water).for_each_set(|i, j| sand.push((i + 1) * g.s + 1 + j));
     sand
 }
 
@@ -129,53 +157,22 @@ fn grow_sand(g: &mut Grid, sand: Vec<usize>) -> usize {
 pub fn part2(input: &str) -> String {
     let mut g = build_grid(input);
     make_land(&mut g);
-    let sand = make_sand(&mut g);
+    let sand = make_sand(&g);
     grow_sand(&mut g, sand).to_string()
-}
-
-fn plant_trees(g: &mut Grid) {
-    let s = g.s;
-    for i in 2..g.h.saturating_sub(2) {
-        for j in 2..g.w.saturating_sub(2) {
-            let idx = (i + 1) * s + j + 1;
-            if g.d[idx] != b'#' {
-                continue;
-            }
-            // 5x5 block without its four corners
-            let ok = (-2isize..=2).all(|di| {
-                (-2isize..=2).all(|dj| {
-                    let n = (idx as isize + di * s as isize + dj) as usize;
-                    (di.abs() == 2 && dj.abs() == 2) || matches!(g.d[n], b'#' | b'@')
-                })
-            });
-            if ok {
-                g.d[idx] = b'@';
-            }
-        }
-    }
-}
-
-// One simultaneous growth step: land with at least 4 tree neighbors and no sand neighbors becomes a tree.
-// Sand never changes during forest growth, so its neighbor counts are computed once by the caller.
-fn grow_forest(g: &mut Grid, sand_count: &[u8]) {
-    let tree_count = count_neighbors(g, b'@');
-    for idx in 0..g.d.len() {
-        if g.d[idx] == b'#' && tree_count[idx] >= 4 && sand_count[idx] == 0 {
-            g.d[idx] = b'@';
-        }
-    }
 }
 
 pub fn part3(input: &str) -> String {
     let mut g = build_grid(input);
     make_land(&mut g);
-    let sand = make_sand(&mut g);
+    let sand = make_sand(&g);
     grow_sand(&mut g, sand);
-    plant_trees(&mut g);
-    let sand_count = count_neighbors(&g, b'=');
-    grow_forest(&mut g, &sand_count);
-    grow_forest(&mut g, &sand_count);
-    g.d.iter().filter(|&&c| c == b'@').count().to_string()
+    let land = BitGrid::from_rows(g.w, MAX_SHIFT, g.row_slices(), |c| c == b'#');
+    let mut trees = plant(&land);
+    let nosand = !&BitGrid::from_rows(g.w, MAX_SHIFT, g.row_slices(), |c| c == b'=').dilate();
+    let mut cand = &land & &!&trees;
+    forest_step(&mut trees, &mut cand, &nosand);
+    forest_step(&mut trees, &mut cand, &nosand);
+    trees.count().to_string()
 }
 
 #[cfg(test)]
