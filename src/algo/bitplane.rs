@@ -87,6 +87,12 @@ impl BitGrid {
         self.with_words((0..n).map(|i| if (0..n).contains(&(i - off)) { self.words[(i - off) as usize] } else { 0 }).collect())
     }
 
+    // Set where at least two of the three grids are set (the carry of a bitwise full adder).
+    pub fn majority(a: &Self, b: &Self, c: &Self) -> Self {
+        let (x, y, z) = (&a.words, &b.words, &c.words);
+        a.from_fn(|i| (x[i] & y[i]) | (x[i] & z[i]) | (y[i] & z[i]))
+    }
+
     // The cell itself and its 8 neighbors.
     pub fn dilate(&self) -> Self {
         let row = &(self | &self.shift_h(1)) | &self.shift_h(-1);
@@ -267,6 +273,20 @@ mod tests {
             let mut acc = ga.clone();
             acc |= &gb;
             check(acc, |x, y| x | y);
+        }
+    }
+
+    #[test]
+    fn majority_matches_naive() {
+        for (n, &w) in WIDTHS.iter().enumerate() {
+            let cs: Vec<Cells> = (0..3).map(|k| random_cells(w, 4, 200 + 10 * n as u64 + k)).collect();
+            let gs: Vec<BitGrid> = cs.iter().map(|c| make(c, 1)).collect();
+            let m = BitGrid::majority(&gs[0], &gs[1], &gs[2]);
+            assert_clean(&m);
+            let want: Cells = (0..4)
+                .map(|i| (0..w).map(|j| cs.iter().filter(|c| c[i][j]).count() >= 2).collect())
+                .collect();
+            assert_eq!(cells_of(&m), want, "w={w}");
         }
     }
 

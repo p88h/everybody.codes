@@ -111,36 +111,6 @@ pub fn part1(input: &str) -> String {
     make_land(&mut g).to_string()
 }
 
-// Land cells (plane `land`) whose 5x5 neighborhood, minus corners, is entirely land.
-fn plant(land: &BitGrid) -> BitGrid {
-    let h3 = &(land & &land.shift_h(1)) & &land.shift_h(-1);
-    let h5 = &(&h3 & &land.shift_h(2)) & &land.shift_h(-2);
-    let wide = &(&h5 & &h5.shift_v(1)) & &h5.shift_v(-1);
-    let tall = &(&(&h3 & &h3.shift_v(1)) & &h3.shift_v(-1)) & &(&h3.shift_v(2) & &h3.shift_v(-2));
-    &(land & &wide) & &tall
-}
-
-// One simultaneous growth step: land cells with at least 4 tree neighbors and no sand neighbors become trees.
-fn forest_step(trees: &mut BitGrid, cand: &mut BitGrid, nosand: &BitGrid) {
-    let (l, r) = (trees.shift_h(1), trees.shift_h(-1));
-    // horizontal 3-sums as 2-bit numbers (s1 s0); the cell itself is never a tree for candidates
-    let (t, lw, rw) = (trees.words(), l.words(), r.words());
-    let s0 = trees.from_fn(|i| t[i] ^ lw[i] ^ rw[i]);
-    let s1 = trees.from_fn(|i| (t[i] & lw[i]) | (t[i] & rw[i]) | (lw[i] & rw[i]));
-    let (p0, n0) = (s0.shift_v(1), s0.shift_v(-1));
-    let (p1, n1) = (s1.shift_v(1), s1.shift_v(-1));
-    let (s0, s1, p0, n0, p1, n1) = (s0.words(), s1.words(), p0.words(), n0.words(), p1.words(), n1.words());
-    // total = bit0 + 2 * (p1 + s1 + n1 + carry): at least 4 iff two of those weight-2 bits are set
-    let ge2 = trees.from_fn(|i| {
-        let carry = (p0[i] & s0[i]) | (p0[i] & n0[i]) | (s0[i] & n0[i]);
-        let (a, b, c, d) = (p1[i], s1[i], n1[i], carry);
-        (a & b) | (c & d) | ((a | b) & (c | d))
-    });
-    let new = &(&*cand & &ge2) & nosand;
-    *trees |= &new;
-    *cand = &*cand & &!&new;
-}
-
 fn make_sand(g: &Grid) -> Vec<usize> {
     let land = BitGrid::from_rows(g.w, MAX_SHIFT, g.row_slices(), |c| c == b'#');
     let water = BitGrid::from_rows(g.w, MAX_SHIFT, g.row_slices(), |c| c != b'#').dilate();
@@ -159,6 +129,31 @@ pub fn part2(input: &str) -> String {
     make_land(&mut g);
     let sand = make_sand(&g);
     grow_sand(&mut g, sand).to_string()
+}
+
+// Land cells (plane `land`) whose 5x5 neighborhood, minus corners, is entirely land.
+fn plant(land: &BitGrid) -> BitGrid {
+    let h3 = &(land & &land.shift_h(1)) & &land.shift_h(-1);
+    let h5 = &(&h3 & &land.shift_h(2)) & &land.shift_h(-2);
+    let wide = &(&h5 & &h5.shift_v(1)) & &h5.shift_v(-1);
+    let tall = &(&(&h3 & &h3.shift_v(1)) & &h3.shift_v(-1)) & &(&h3.shift_v(2) & &h3.shift_v(-2));
+    &(land & &wide) & &tall
+}
+
+// One simultaneous growth step: land cells with at least 4 tree neighbors and no sand neighbors become trees.
+fn forest_step(trees: &mut BitGrid, cand: &mut BitGrid, nosand: &BitGrid) {
+    // horizontal 3-sums as 2-bit numbers (s1 s0); the cell itself is never a tree for candidates
+    let (l, r) = (trees.shift_h(1), trees.shift_h(-1));
+    let s0 = &(&*trees ^ &l) ^ &r;
+    let s1 = BitGrid::majority(trees, &l, &r);
+    // vertical sum of the weight-1 bits: its carry has weight 2
+    let carry = BitGrid::majority(&s0.shift_v(1), &s0, &s0.shift_v(-1));
+    // total = bit0 + 2 * (s1 above + s1 + s1 below + carry): at least 4 iff at least two of those four are set
+    let (above, below) = (s1.shift_v(1), s1.shift_v(-1));
+    let ge4 = &BitGrid::majority(&above, &s1, &(&below | &carry)) | &(&below & &carry);
+    let new = &(&*cand & &ge4) & nosand;
+    *trees |= &new;
+    *cand = &*cand & &!&new;
 }
 
 pub fn part3(input: &str) -> String {
