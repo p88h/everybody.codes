@@ -19,7 +19,7 @@ fn bfs<'a>(
     queue.push_back(start);
     while let Some(node) = queue.pop_front() {
         if let Some(neighbors) = graph.get(node) {
-            queue.extend(neighbors.iter().filter(|&&next|visited.insert(next)));
+            queue.extend(neighbors.iter().filter(|&&next| visited.insert(next)));
         }
     }
     visited
