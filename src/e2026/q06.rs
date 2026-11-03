@@ -1,13 +1,10 @@
 fn parse_graph<'a>(input: &'a str, invert_edges: bool) -> std::collections::HashMap<&'a str, Vec<&'a str>> {
     let mut graph = std::collections::HashMap::new();
     for line in input.lines() {
-        let (key, values) = line.split_once(':').expect("each line must contain ':'");
+        let (key, values) = line.split_once(':').unwrap();
         for value in values.split(',') {
-            if invert_edges {
-                graph.entry(value).or_insert_with(Vec::new).push(key);
-            } else {
-                graph.entry(key).or_insert_with(Vec::new).push(value);
-            }
+            let (from, to) = if invert_edges { (value, key) } else { (key, value) };
+            graph.entry(from).or_insert_with(Vec::new).push(to);
         }
     }
     graph
@@ -21,13 +18,8 @@ fn bfs<'a>(
     let mut queue = std::collections::VecDeque::new();
     queue.push_back(start);
     while let Some(node) = queue.pop_front() {
-        if !visited.insert(node) {
-            continue;
-        }
         if let Some(neighbors) = graph.get(node) {
-            for &neighbor in neighbors {
-                queue.push_back(neighbor);
-            }
+            queue.extend(neighbors.iter().filter(|&&next|visited.insert(next)));
         }
     }
     visited
