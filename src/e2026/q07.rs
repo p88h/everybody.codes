@@ -92,8 +92,10 @@ fn simulate(start: usize, strength: usize, base: &[i64], graph: &[Vec<usize>], l
 
 fn solve3(input: &str, limit: i64) -> i64 {
     let (energies, graph) = parse(input);
+    // each simulation is tiny, so batch starts to keep rayon's scheduling overhead down
     (1..energies.len())
         .into_par_iter()
+        .with_min_len(10)
         .map(|start| simulate(start, 10, &energies, &graph, limit))
         .max()
         .unwrap()
