@@ -50,7 +50,8 @@ fn decode_hex(hex: &str) -> Result<Vec<u8>, String> {
 pub fn download_notes(event: i32, quest: i32, part: i32) -> Result<String, String> {
     let cookie = cookie()?;
 
-    let seed = request(&cookie, "https://api.everybody.codes/user/me", "seed")?;
+    let seed = request(&cookie, "https://api.everybody.codes/user/me", "seed")
+        .map_err(|e| format!("{e}. The session cookie is probably expired or invalid, log in again and update EC_COOKIE / .cookie"))?;
     if seed == "0" {
         return Err("Invalid seed parameter. Check that session cookie is valid".to_string());
     }
