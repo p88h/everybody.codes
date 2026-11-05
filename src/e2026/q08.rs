@@ -1,7 +1,7 @@
-fn start_edge(grid: &[Vec<u8>], (dr, dc): (isize, isize)) -> Vec<(usize, usize)> {
-    let middle = grid.len() / 2;
+fn start_edge(height: usize, width: usize, (dr, dc): (isize, isize)) -> Vec<(usize, usize)> {
+    let middle = height / 2;
     let center_left = 0;
-    let center_right = grid[middle].len() as isize - 1;
+    let center_right = width as isize - 1;
     let top_left = middle as isize;
     let top_right = 3 * middle as isize;
 
@@ -34,7 +34,7 @@ fn illuminate(grid: &[Vec<u8>], (dr, dc): (isize, isize)) -> usize {
     let height = grid.len() as isize;
     let width = grid[0].len() as isize;
     let mut count = 0;
-    for (start_i, start_j) in start_edge(grid, (dr, dc)) {
+    for (start_i, start_j) in start_edge(grid.len(), grid[0].len(), (dr, dc)) {
         let (mut i, mut j) = (start_i as isize, start_j as isize);
         let mut shadow = 0usize;
         while i >= 0 && i < height && j >= 0 && j < width {
@@ -67,13 +67,13 @@ pub fn part2(input: &str) -> String {
     directions.iter().map(|&direction| illuminate(&grid, direction)).sum::<usize>().to_string()
 }
 
-fn grow(grid: &mut [Vec<u8>], (dr, dc): (isize, isize)) -> (usize, usize) {
+fn grow(grid: &mut [Vec<u8>], (dr, dc): (isize, isize), starts: &[(usize, usize)]) -> (usize, usize) {
     let height = grid.len() as isize;
     let width = grid[0].len() as isize;
-    let mut activations = 0;
-    let mut removals = 0;
+    let mut energy = 0;
+    let mut grown = 0;
 
-    for (start_i, start_j) in start_edge(grid, (dr, dc)) {
+    for &(start_i, start_j) in starts {
         let (mut i, mut j) = (start_i as isize, start_j as isize);
         let mut shadow = 0usize;
 
@@ -82,10 +82,10 @@ fn grow(grid: &mut [Vec<u8>], (dr, dc): (isize, isize)) -> (usize, usize) {
             if cell.is_ascii_digit() {
                 let digit = (*cell - b'0') as usize;
                 if digit >= shadow {
-                    activations += 1;
+                    energy += 1;
                     if digit == 9 {
                         *cell = b'a';
-                        removals += 1;
+                        grown += 1;
                     } else {
                         *cell += 1;
                     }
@@ -106,23 +106,26 @@ fn grow(grid: &mut [Vec<u8>], (dr, dc): (isize, isize)) -> (usize, usize) {
             j += dc;
         }
     }
-    (activations, removals)
+    (energy, grown)
 }
 
 pub fn part3(input: &str) -> String {
     let mut grid: Vec<Vec<u8>> = input.lines().map(|line| line.as_bytes().to_vec()).collect();
-    let directions = [(1, 1), (1, -1), (0, -2), (-1, -1), (-1, 1), (0, 2)];
-    let mut removals = 0;
-    let mut activations = 0;
+    let dirs = [(1, 1), (1, -1), (0, -2), (-1, -1), (-1, 1), (0, 2)];
+    let starts: Vec<Vec<(usize, usize)>> =
+        dirs.iter().map(|&dir| start_edge(grid.len(), grid[0].len(), dir)).collect();
+    let mut all_grown = 0;
+    let mut all_energy = 0;
     let mut steps = 0;
 
-    while removals < 100_000 {
-        let (step_activations, step_removals) = grow(&mut grid, directions[steps % directions.len()]);
-        activations += step_activations;
-        removals += step_removals;
+    while all_grown < 100_000 {
+        let idx = steps % dirs.len();
+        let (energy, grown) = grow(&mut grid, dirs[idx], &starts[idx]);
+        all_energy += energy;
+        all_grown += grown;
         steps += 1;
     }
-    activations.to_string()
+    all_energy.to_string()
 }
 
 #[cfg(test)]
