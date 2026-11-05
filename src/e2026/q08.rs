@@ -30,41 +30,25 @@ fn start_edge(height: usize, width: usize, (dr, dc): (isize, isize)) -> Vec<(usi
     starts
 }
 
-fn illuminate(grid: &[Vec<u8>], (dr, dc): (isize, isize)) -> usize {
-    let height = grid.len() as isize;
-    let width = grid[0].len() as isize;
-    let mut count = 0;
-    for (start_i, start_j) in start_edge(grid.len(), grid[0].len(), (dr, dc)) {
-        let (mut i, mut j) = (start_i as isize, start_j as isize);
-        let mut shadow = 0usize;
-        while i >= 0 && i < height && j >= 0 && j < width {
-            let cell = grid[i as usize][j as usize];
-            if cell.is_ascii_digit() {
-                let digit = (cell - b'0') as usize;
-                if digit >= shadow {
-                    count += 1;
-                    shadow = digit + 1;
-                }
-            } else if cell == b'.' {
-                break;
-            }
-            shadow = shadow.saturating_sub(1);
-            i += dr;
-            j += dc;
-        }
-    }
-    count
-}
-
 pub fn part1(input: &str) -> String {
-    let grid: Vec<Vec<u8>> = input.lines().map(|line| line.as_bytes().to_vec()).collect();
-    illuminate(&grid, (1, 1)).to_string()
+    let mut grid: Vec<Vec<u8>> = input.lines().map(|line| line.as_bytes().to_vec()).collect();
+    let direction = (1, 1);
+    let starts = start_edge(grid.len(), grid[0].len(), direction);
+    grow(&mut grid, direction, &starts).0.to_string()
 }
 
 pub fn part2(input: &str) -> String {
-    let grid: Vec<Vec<u8>> = input.lines().map(|line| line.as_bytes().to_vec()).collect();
+    let original: Vec<Vec<u8>> = input.lines().map(|line| line.as_bytes().to_vec()).collect();
     let directions = [(1, 1), (1, -1), (0, -2), (-1, 1), (-1, -1), (0, 2)];
-    directions.iter().map(|&direction| illuminate(&grid, direction)).sum::<usize>().to_string()
+    directions
+        .iter()
+        .map(|&direction| {
+            let mut grid = original.clone();
+            let starts = start_edge(grid.len(), grid[0].len(), direction);
+            grow(&mut grid, direction, &starts).0
+        })
+        .sum::<usize>()
+        .to_string()
 }
 
 fn grow(grid: &mut [Vec<u8>], (dr, dc): (isize, isize), starts: &[(usize, usize)]) -> (usize, usize) {
@@ -112,8 +96,7 @@ fn grow(grid: &mut [Vec<u8>], (dr, dc): (isize, isize), starts: &[(usize, usize)
 pub fn part3(input: &str) -> String {
     let mut grid: Vec<Vec<u8>> = input.lines().map(|line| line.as_bytes().to_vec()).collect();
     let dirs = [(1, 1), (1, -1), (0, -2), (-1, -1), (-1, 1), (0, 2)];
-    let starts: Vec<Vec<(usize, usize)>> =
-        dirs.iter().map(|&dir| start_edge(grid.len(), grid[0].len(), dir)).collect();
+    let starts: Vec<Vec<(usize, usize)>> = dirs.iter().map(|&dir| start_edge(grid.len(), grid[0].len(), dir)).collect();
     let mut all_grown = 0;
     let mut all_energy = 0;
     let mut steps = 0;
