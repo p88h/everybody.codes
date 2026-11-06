@@ -14,7 +14,7 @@ fn plant_size_time(growth: u64, limit: u64) -> u64 {
     let mut branches = vec![(0, 1)];
     let mut count = 0;
     let mut steps = 0;
-    while steps == 0 || count < limit {
+    while count < limit {
         steps += 1;
         let mut new_branches = Vec::new();
         for (size, num) in branches.iter() {
@@ -38,17 +38,16 @@ fn plant_size_time(growth: u64, limit: u64) -> u64 {
 fn leaves_time(growth: u64, limit: u64) -> u64 {
     let half = growth / 2;
     let mut leaves = 1;
+    let mut time = 1;
     let mut splits = BTreeMap::from([(growth, 1u64)]);
     while leaves < limit {
-        let (time, num) = splits.pop_first().unwrap();
+        let (t, num) = splits.pop_first().unwrap();
+        time = t;
         leaves += num;
-        if leaves >= limit {
-            return time;
-        }
         *splits.entry(time + half + 1).or_default() += num * 2;
         *splits.entry(time + growth - 1).or_default() += num;
     }
-    1
+    time
 }
 
 pub fn part1(input: &str) -> String {
