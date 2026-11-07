@@ -1,5 +1,4 @@
-use rayon::prelude::*;
-use std::collections::BTreeMap;
+use std::collections::VecDeque;
 
 fn parse(input: &str) -> impl Iterator<Item = (u64, u64)> + '_ {
     input.lines().map(|line| {
@@ -34,18 +33,26 @@ fn plant_size_time(growth: u64, limit: u64) -> u64 {
 }
 
 // Every split adds a leaf. The two halves split again after half + 1 seconds and the new
-// branch after growth - 1 seconds, so only the seconds in which splits happen are visited.
+// branch after growth - 1 seconds. Splits are handled in time order, so each of these two
+// delays yields a queue that is already sorted, and the next second is the earlier front.
+// The first split is seeded in both queues (with no new branch), so neither is ever empty.
 fn leaves_time(growth: u64, limit: u64) -> u64 {
-    let half = growth / 2;
+    let mut halves = VecDeque::from([(growth, 1u64)]);
+    let mut shoots = VecDeque::from([(growth, 0u64)]);
     let mut leaves = 1;
     let mut time = 1;
-    let mut splits = BTreeMap::from([(growth, 1u64)]);
     while leaves < limit {
-        let (t, num) = splits.pop_first().unwrap();
-        time = t;
+        time = halves[0].0.min(shoots[0].0);
+        let mut num = 0;
+        if halves[0].0 == time {
+            num += halves.pop_front().unwrap().1;
+        }
+        if shoots[0].0 == time {
+            num += shoots.pop_front().unwrap().1;
+        }
         leaves += num;
-        *splits.entry(time + half + 1).or_default() += num * 2;
-        *splits.entry(time + growth - 1).or_default() += num;
+        halves.push_back((time + growth / 2 + 1, num * 2));
+        shoots.push_back((time + growth - 1, num));
     }
     time
 }
@@ -58,23 +65,8 @@ pub fn part2(input: &str) -> String {
     parse(input).map(|(growth, limit)| leaves_time(growth, limit)).sum::<u64>().to_string()
 }
 
-// Work grows with the line number, so each task takes every STRIDE-th line to balance them.
-const STRIDE: usize = 3;
-
 pub fn part3(input: &str) -> String {
-    let plants: Vec<_> = parse(input).collect();
-    (0..STRIDE)
-        .into_par_iter()
-        .map(|k| {
-            plants
-                .iter()
-                .skip(k)
-                .step_by(STRIDE)
-                .map(|&(growth, limit)| leaves_time(growth, limit))
-                .sum::<u64>()
-        })
-        .sum::<u64>()
-        .to_string()
+    part2(input)
 }
 
 #[cfg(test)]

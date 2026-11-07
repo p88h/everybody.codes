@@ -12,7 +12,6 @@ fn parse_grid(input: &str) -> (Vec<u8>, usize, usize) {
         .flatten()
         .map(|&c| match c {
             b'1'..=b'9' => c - b'1',
-            b'a'..=b'c' => c - b'a' + GROWN,
             _ => 0,
         })
         .collect();
@@ -177,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_part3_reaches_removal_threshold() {
+    fn test_part3() {
         assert_eq!(part3(INPUT), "899889");
     }
 }
