@@ -56,6 +56,8 @@ pub fn part2(input: &str) -> String {
     vanish(input, 10000)
 }
 
+const CHECK_EVERY: i64 = 16;
+
 fn vanish(input: &str, lives: i64) -> String {
     let w = input.lines().next().unwrap().len();
     let grid: Vec<u8> = input.lines().flat_map(|line| line.bytes()).collect();
@@ -73,25 +75,28 @@ fn vanish(input: &str, lives: i64) -> String {
     // state (all ghosts) -> (round, lives at that time)
     let mut seen: HashMap<Vec<u16>, (i64, Vec<i64>)> = HashMap::new();
     while alive > 0 {
-        let key = ghosts.clone();
-        if let Some((r0, l0)) = seen.get(&key) {
-            let len = round - r0;
-            let mut k = i64::MAX;
-            for (&before, &after) in l0.iter().zip(&ghost_lives) {
-                if before > after {
-                    // how many times this ghost can go through the cycle
-                    k = k.min((after - 1) / (before - after));
+        // only sample every few rounds: sampled states still repeat, with a period that is a multiple of the cycle
+        if round % CHECK_EVERY == 0 {
+            let key = ghosts.clone();
+            if let Some((r0, l0)) = seen.get(&key) {
+                let len = round - r0;
+                let mut k = i64::MAX;
+                for (&before, &after) in l0.iter().zip(&ghost_lives) {
+                    if before > after {
+                        // how many times this ghost can go through the cycle
+                        k = k.min((after - 1) / (before - after));
+                    }
+                }
+                if k > 0 && k != i64::MAX {
+                    round += k * len;
+                    for (&before, after) in l0.iter().zip(ghost_lives.iter_mut()) {
+                        *after -= k * (before - *after);
+                    }
+                    seen.clear();
                 }
             }
-            if k > 0 && k != i64::MAX {
-                round += k * len;
-                for (&before, after) in l0.iter().zip(ghost_lives.iter_mut()) {
-                    *after -= k * (before - *after);
-                }
-                seen.clear();
-            }
+            seen.insert(key, (round, ghost_lives.clone()));
         }
-        seen.insert(key, (round, ghost_lives.clone()));
         let alive_before = alive;
         round += 1;
         let mut dead = Vec::new();
