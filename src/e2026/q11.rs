@@ -109,7 +109,6 @@ pub fn part3(input: &str) -> String {
     let step = n / 8;
     let mut offsets = Vec::new();
     pairings(&[0, 1, 2, 3, 4, 5, 6, 7], &mut Vec::new(), &mut offsets);
-    // each candidate is only a few microseconds, so batch them to keep rayon's scheduling overhead down
     let best = (0..step * offsets.len())
         .into_par_iter()
         .map_init(
