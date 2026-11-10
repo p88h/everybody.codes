@@ -88,35 +88,48 @@ pub fn part2(input: &str) -> String {
     (ring_distance - best).to_string()
 }
 
-fn pairings(slots: &[usize], pairs: &mut Vec<(usize, usize)>, out: &mut Vec<Vec<(usize, usize)>>) {
-    let Some((&first, rest)) = slots.split_first() else {
-        out.push(pairs.clone());
-        return;
-    };
-    for (i, &partner) in rest.iter().enumerate() {
-        let mut remaining = rest.to_vec();
-        remaining.remove(i);
-        pairs.push((first, partner));
-        pairings(&remaining, pairs, out);
-        pairs.pop();
+// all ways to pair up 8 slots into 4 disjoint pairs: 7 * 5 * 3 * 1
+const PAIRINGS: [[(usize, usize); 4]; 105] = {
+    const fn fill(out: &mut [[(usize, usize); 4]; 105], count: &mut usize, used: u8, mut pairs: [(usize, usize); 4], depth: usize) {
+        if depth == 4 {
+            out[*count] = pairs;
+            *count += 1;
+            return;
+        }
+        // always pair the lowest free slot, so each matching is generated once
+        let mut first = 0;
+        while used >> first & 1 == 1 {
+            first += 1;
+        }
+        let mut partner = first + 1;
+        while partner < 8 {
+            if used >> partner & 1 == 0 {
+                pairs[depth] = (first, partner);
+                fill(out, count, used | 1 << first | 1 << partner, pairs, depth + 1);
+            }
+            partner += 1;
+        }
     }
-}
+    let mut out = [[(0, 0); 4]; 105];
+    let mut count = 0;
+    fill(&mut out, &mut count, 0, [(0, 0); 4], 0);
+    assert!(count == 105);
+    out
+};
 
 // same as part 2, but adds 4 edges that pair up 8 evenly spaced portals
 pub fn part3(input: &str) -> String {
     let (adj, ring_distance) = parse(input, 3);
     let n = adj.len();
     let step = n / 8;
-    let mut offsets = Vec::new();
-    pairings(&[0, 1, 2, 3, 4, 5, 6, 7], &mut Vec::new(), &mut offsets);
-    let best = (0..step * offsets.len())
+    let best = (0..step * PAIRINGS.len())
         .into_par_iter()
         .map_init(
             || adj.clone(),
             |work, i| {
-                let start = i / offsets.len();
+                let start = i / PAIRINGS.len();
                 work.copy_from_slice(&adj);
-                for &(a, b) in &offsets[i % offsets.len()] {
+                for &(a, b) in &PAIRINGS[i % PAIRINGS.len()] {
                     add_edge(work, start + a * step, start + b * step);
                 }
                 total_distance(work)
@@ -130,6 +143,17 @@ pub fn part3(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_pairings_are_distinct_perfect_matchings() {
+        let mut seen = std::collections::HashSet::new();
+        for pairs in PAIRINGS {
+            let slots = pairs.iter().fold(0u8, |mask, &(a, b)| mask | 1 << a | 1 << b);
+            assert_eq!(slots, 255);
+            assert!(pairs.iter().all(|&(a, b)| a < b));
+            assert!(seen.insert(pairs));
+        }
+    }
 
     #[test]
     fn test_part1() {
