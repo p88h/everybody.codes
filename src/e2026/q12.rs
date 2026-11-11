@@ -45,7 +45,9 @@ pub fn part2(input: &str) -> String {
 pub fn part3(input: &str) -> String {
     let g: Vec<&[u8]> = input.lines().map(|l| l.as_bytes()).collect();
     let (h, w) = (g.len(), g[0].len());
-    let mut adj: Vec<Vec<usize>> = Vec::new();
+    // flat adjacency: h-run u's v-runs are targets[starts[u]..starts[u + 1]]
+    let mut starts: Vec<usize> = Vec::new();
+    let mut targets: Vec<usize> = Vec::new();
     let mut vid = vec![usize::MAX; w];
     let mut nv = 0;
     for y in 0..h {
@@ -53,18 +55,20 @@ pub fn part3(input: &str) -> String {
             if g[y][x] == b'#' {
                 // start a new h-run unless continuing from the left
                 if x == 0 || g[y][x - 1] != b'#' {
-                    adj.push(Vec::new());
+                    starts.push(targets.len());
                 }
                 // start a new v-run unless continuing from above
                 if y == 0 || g[y - 1][x] != b'#' {
                     vid[x] = nv;
                     nv += 1;
                 }
-                adj.last_mut().unwrap().push(vid[x]);
+                targets.push(vid[x]);
             }
         }
     }
-    min_vertex_cover(&adj, nv).to_string()
+    let nh = starts.len();
+    starts.push(targets.len());
+    min_vertex_cover(nh, nv, |u| &targets[starts[u]..starts[u + 1]]).to_string()
 }
 
 #[cfg(test)]
