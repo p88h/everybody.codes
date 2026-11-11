@@ -1,74 +1,83 @@
-use crate::algo::vertex_cover::min_vertex_cover;
-
 pub fn part1(input: &str) -> String {
-    part2(input)
+    part3(input)
 }
 
 pub fn part2(input: &str) -> String {
+    part3(input)
+}
+
+pub fn part3(input: &str) -> String {
+    let mut shapes: Vec<Shape> = Vec::new();
     let w = input.lines().next().unwrap().len();
-    let mut shapes: Vec<(usize, usize, usize, usize)> = Vec::new();
-    let mut prev = vec![usize::MAX; w];
-    let mut cur = vec![usize::MAX; w];
-    for row in input.lines().map(str::as_bytes) {
-        cur.fill(usize::MAX);
+    let mut starts = vec![(usize::MAX, 0); w + 1];
+    let mut ends = vec![(usize::MAX, 0); w + 1];
+    for (y, row) in input.lines().map(str::as_bytes).enumerate() {
         let mut x = 0;
         while let Some(skip) = row[x..].iter().position(|&c| c == b'#') {
             let start = x + skip;
             x = start + row[start..].iter().take_while(|&&c| c == b'#').count();
-            let mut id = prev[start].min(prev[x - 1]);
-            if id == usize::MAX {
-                id = shapes.len();
-                shapes.push((usize::MAX, 0, 0, 0));
-            }
-            let width = x - start;
-            let (min_w, max_w, num_full, rows) = &mut shapes[id];
-            *min_w = (*min_w).min(width);
-            if width > *max_w {
-                *max_w = width;
-                *num_full = 0;
-            }
-            if width == *max_w {
-                *num_full += 1;
-            }
-            *rows += 1;
-            cur[start..x].fill(id);
+            // (a U open at the top would line up with a different shape at each end: doesn't occur)
+            let (left, right) = (starts[start].0 == y, ends[x].0 == y);
+            let id = if left || right {
+                let id = if left { starts[start].1 } else { ends[x].1 };
+                shapes[id].add_run(x - start, left, right);
+                id
+            } else {
+                shapes.push(Shape { w: x - start, t: 1, ..Default::default() });
+                shapes.len() - 1
+            };
+            starts[start] = (y + 1, id);
+            ends[x] = (y + 1, id);
         }
-        std::mem::swap(&mut prev, &mut cur);
     }
     let mut count = 0;
-    for &(min_w, max_w, num_full, rows) in &shapes {
-        count += max_w.min(rows).min(num_full + min_w);
+    for shape in &shapes {
+        count += shape.lines();
     }
     count.to_string()
 }
 
-pub fn part3(input: &str) -> String {
-    let g: Vec<&[u8]> = input.lines().map(|l| l.as_bytes()).collect();
-    let (h, w) = (g.len(), g[0].len());
-    // flat adjacency: h-run u's v-runs are targets[starts[u]..starts[u + 1]]
-    let mut starts: Vec<usize> = Vec::new();
-    let mut targets: Vec<usize> = Vec::new();
-    let mut vid = vec![usize::MAX; w];
-    let mut nv = 0;
-    for y in 0..h {
-        for x in 0..w {
-            if g[y][x] == b'#' {
-                // start a new h-run unless continuing from the left
-                if x == 0 || g[y][x - 1] != b'#' {
-                    starts.push(targets.len());
-                }
-                // start a new v-run unless continuing from above
-                if y == 0 || g[y - 1][x] != b'#' {
-                    vid[x] = nv;
-                    nv += 1;
-                }
-                targets.push(vid[x]);
+#[derive(Default)]
+struct Shape {
+    w: usize, // full width
+    l: usize, // width of the bar left
+    r: usize, // width of the bar right
+    t: usize, // rows above the hole (all rows if there's no hole)
+    b: usize, // rows below the hole
+    h: usize, // runs beside the hole (one per side)
+}
+
+impl Shape {
+    fn add_run(&mut self, width: usize, left: bool, right: bool) {
+        if width > self.w {
+            if left {
+                self.l = self.w;
+            } else {
+                self.r = self.w;
             }
+            (self.h, self.t, self.b, self.w) = (self.t, 0, 1, width);
+        } else if width < self.w {
+            match (left, right) {
+                (true, false) => self.l = width,
+                (false, true) => self.r = width,
+                _ => {}
+            }
+            self.h += 1;
+        } else if self.h == 0 {
+            self.t += 1;
+        } else {
+            self.b += 1;
         }
     }
-    let nh = starts.len();
-    starts.push(targets.len());
-    min_vertex_cover(nh, nv, |u| &targets[starts[u]..starts[u + 1]]).to_string()
+
+    fn lines(&self) -> usize {
+        if self.h == 0 {
+            return self.w.min(self.t);
+        }
+        let hw = self.w - self.l - self.r;
+        let hh = self.h / ((self.l > 0) as usize + (self.r > 0) as usize);
+        (self.t + self.b + hh.min(self.l) + hh.min(self.r)).min(self.l + self.r + hw.min(self.t) + hw.min(self.b))
+    }
 }
 
 #[cfg(test)]
@@ -156,7 +165,7 @@ mod tests {
         let input = "\
 ..............................
 .############################.
-.##...................###.###.
+.##.......................###.
 .##..################.###.###.
 .##..######.........#.###.###.
 .##..################.###.###.
