@@ -3,6 +3,7 @@ pub mod algo {
     pub mod bitplane;
     pub mod math;
     pub mod union_find;
+    pub mod vertex_cover;
     pub mod strings;
 }
 pub struct Solution {
@@ -49,5 +50,5 @@ library!(
     s03 { q01, q02 },
     e2024 { q01, q02, q03, q04, q05, q06 },
     e2025 { q01, q02, q03, q04, q05, q06, q07, q08, q09, q10, q11, q12, q13, q14, q15, q16, q17, q18, q19, q20 },
-    e2026 { q01, q02, q03, q04, q05, q06, q07, q08, q09, q10, q11 }
+    e2026 { q01, q02, q03, q04, q05, q06, q07, q08, q09, q10, q11, q12 }
 );
