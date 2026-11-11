@@ -1,40 +1,45 @@
 use crate::algo::vertex_cover::min_vertex_cover;
 
 pub fn part1(input: &str) -> String {
-    // load the input into u8 grid
-    let mut grid: Vec<Vec<u8>> = input.lines().map(|line| line.chars().map(|c| c as u8).collect()).collect();
-    // look for '#'
-    let mut count = 0;
-    let width = grid[0].len();
-    let height = grid.len();
-    for y in 0..height {
-        for x in 0..width {
-            if grid[y][x] == b'#' {
-                let mut rw = 1;
-                let mut rh = 1;
-                while x + rw < width && grid[y][x + rw] == b'#' {
-                    rw += 1;
-                }
-                while y + rh < height && grid[y + rh][x] == b'#' {
-                    rh += 1;
-                }
-                // zero out the rectangle to avoid double counting
-                for dy in 0..rh {
-                    for dx in 0..rw {
-                        grid[y + dy][x + dx] = b'.';
-                    }
-                }
-                // count the min size
-                count += rw.min(rh);
-            }
-        }
-    }
-    count.to_string()
+    part2(input)
 }
 
 pub fn part2(input: &str) -> String {
-    // part2 had a simplified formula but it wasn't faster than part3 solution
-    part3(input)
+    let w = input.lines().next().unwrap().len();
+    let mut shapes: Vec<(usize, usize, usize, usize)> = Vec::new();
+    let mut prev = vec![usize::MAX; w];
+    let mut cur = vec![usize::MAX; w];
+    for row in input.lines().map(str::as_bytes) {
+        cur.fill(usize::MAX);
+        let mut x = 0;
+        while let Some(skip) = row[x..].iter().position(|&c| c == b'#') {
+            let start = x + skip;
+            x = start + row[start..].iter().take_while(|&&c| c == b'#').count();
+            let mut id = prev[start].min(prev[x - 1]);
+            if id == usize::MAX {
+                id = shapes.len();
+                shapes.push((usize::MAX, 0, 0, 0));
+            }
+            let width = x - start;
+            let (min_w, max_w, num_full, rows) = &mut shapes[id];
+            *min_w = (*min_w).min(width);
+            if width > *max_w {
+                *max_w = width;
+                *num_full = 0;
+            }
+            if width == *max_w {
+                *num_full += 1;
+            }
+            *rows += 1;
+            cur[start..x].fill(id);
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    let mut count = 0;
+    for &(min_w, max_w, num_full, rows) in &shapes {
+        count += max_w.min(rows).min(num_full + min_w);
+    }
+    count.to_string()
 }
 
 pub fn part3(input: &str) -> String {
