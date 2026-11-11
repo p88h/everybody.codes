@@ -26,6 +26,17 @@ pub fn compute_crt(remainders: &Vec<i64>, moduli: &Vec<i64>) -> i64 {
     result % prod
 }
 
+pub fn gcd(mut a: usize, mut b: usize) -> usize {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+    a
+}
+
+pub fn lcm(a: usize, b: usize) -> usize {
+    a / gcd(a, b) * b
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
