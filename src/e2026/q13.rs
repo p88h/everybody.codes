@@ -14,12 +14,10 @@ fn count_overlaps(block: &str) -> i64 {
     let mut current: Vec<i64> = lists[2].iter().enumerate().map(|(i, s)| s.parse::<i64>().unwrap() * step[i]).collect();
     let mut moves: Vec<i64> = lists[3].iter().map(|s| s.parse().unwrap()).collect();
     let mut overlaps = 0;
+    let mut velocity: Vec<i64> = (0..n).map(|i| if moves[i] > 0 { directions[i] * step[i] } else { 0 }).collect();
 
     // jump to the next point in time when any hand runs out of moves
     while let Some(k) = moves.iter().copied().filter(|&m| m > 0).min() {
-        // signed speed of each hand on the common circle; hands out of moves stand still
-        let velocity: Vec<i64> = (0..n).map(|i| if moves[i] > 0 { directions[i] * step[i] } else { 0 }).collect();
-
         for i in 0..n {
             for j in i + 1..n {
                 let rel = velocity[i] - velocity[j];
@@ -39,9 +37,12 @@ fn count_overlaps(block: &str) -> i64 {
         }
 
         for i in 0..n {
-            current[i] = (current[i] + velocity[i] * k).rem_euclid(lcm);
             if moves[i] > 0 {
+                current[i] = (current[i] + velocity[i] * k).rem_euclid(lcm);
                 moves[i] -= k;
+            }
+            if moves[i] == 0 {
+                velocity[i] = 0;
             }
         }
     }
