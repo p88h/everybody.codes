@@ -8,11 +8,21 @@ impl UnionFind {
         UnionFind { parent: (0..size).collect(), rank: vec![0; size] }
     }
 
-    pub fn find(&mut self, x: usize) -> usize {
-        if self.parent[x] != x {
-            self.parent[x] = self.find(self.parent[x]);
+    /// Puts every element back in its own set, keeping the allocation.
+    pub fn reset(&mut self) {
+        for (i, p) in self.parent.iter_mut().enumerate() {
+            *p = i;
         }
-        self.parent[x]
+        self.rank.fill(0);
+    }
+
+    pub fn find(&mut self, mut x: usize) -> usize {
+        // path halving: point every other node on the way up at its grandparent
+        while self.parent[x] != x {
+            self.parent[x] = self.parent[self.parent[x]];
+            x = self.parent[x];
+        }
+        x
     }
 
     pub fn union(&mut self, x: usize, y: usize) -> bool {
@@ -124,6 +134,17 @@ mod tests {
         assert!(uf.connected(4, 5));
         assert!(!uf.connected(0, 2));
         assert!(!uf.connected(2, 4));
+    }
+
+    #[test]
+    fn test_reset() {
+        let mut uf = UnionFind::new(4);
+        uf.union(0, 1);
+        uf.union(2, 3);
+        uf.reset();
+        assert!(!uf.connected(0, 1));
+        assert!(!uf.connected(2, 3));
+        assert!(uf.union(1, 2));
     }
 
     #[test]
