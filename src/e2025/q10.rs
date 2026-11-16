@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::algo::fxhash::FxHashMap;
 
 fn find_dragon(grid: &mut Vec<Vec<u8>>) -> (usize, usize) {
     for r in 0..grid.len() {
@@ -52,8 +52,15 @@ pub fn part2(input: &str) -> String {
     // knight moves
     let ofs = vec![(-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1), (2, -1), (1, -2)];
     let mut sheep = 0;
+    let (h, w) = (grid.len(), grid[0].len());
+    // dragon positions after this round: a list to iterate, plus a grid of marks for lookups
+    let mut new_pos = vec![];
+    let mut on = vec![false; h * w];
     for _ in 0..20 {
-        let mut new_pos = std::collections::HashSet::new();
+        for &(r, c) in new_pos.iter() {
+            on[r * w + c] = false;
+        }
+        new_pos.clear();
         // move the dragon
         for &(r, c) in pos.iter() {
             for &(dr, dc) in ofs.iter() {
@@ -64,7 +71,11 @@ pub fn part2(input: &str) -> String {
                         sheep += 1;
                         grid[nr as usize][nc as usize] = b'.';
                     }
-                    new_pos.insert((nr as usize, nc as usize));
+                    let i = nr as usize * w + nc as usize;
+                    if !on[i] {
+                        on[i] = true;
+                        new_pos.push((nr as usize, nc as usize));
+                    }
                 }
             }
         }
@@ -74,7 +85,7 @@ pub fn part2(input: &str) -> String {
                 if grid[r][c] == b'S' || grid[r][c] == b'H' {
                     grid[r][c] -= 37; // S becomes ., H becomes #
                     if r < grid.len() - 1 {
-                        if new_pos.contains(&(r + 1, c)) && grid[r + 1][c] != b'#' {
+                        if on[(r + 1) * w + c] && grid[r + 1][c] != b'#' {
                             sheep += 1; // eaten by dragon
                         } else {
                             grid[r + 1][c] += 37; // . becomes S, # becomes H
@@ -87,98 +98,93 @@ pub fn part2(input: &str) -> String {
             break;
         }
         pos.clear();
-        pos.extend(new_pos);
+        pos.extend_from_slice(&new_pos);
     }
     sheep.to_string()
 }
 
-// map start position to all end positions
-fn precompute_dragon_moves(grid: &mut Vec<Vec<u8>>) -> Vec<Vec<usize>> {
-    let mut moves = vec![vec![]; 64];
-    let ofs = vec![(-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1), (2, -1), (1, -2)];
-    for r in 0..grid.len() {
-        for c in 0..grid[r].len() {
-            let idx = r * 8 + c;
-            for &(dr, dc) in ofs.iter() {
-                let nr = r as i32 + dr;
-                let nc = c as i32 + dc;
-                if nr >= 0 && nr < grid.len() as i32 && nc >= 0 && nc < grid[0].len() as i32 {
-                    let nidx = nr as usize * 8 + nc as usize;
-                    moves[idx].push(nidx);
-                }
-            }
-        }
-    }
-    moves
+// Board squares are indexed r * 8 + c, 
+struct Board {
+    moves: [u64; 64], // knight targets of each square, as a bitmask of squares
+    hide: u64,        // hideout squares
+    stop: [u32; 8],   // per column: a sheep on this row can only step to safety, which never helps
+    width: usize,
 }
 
-fn explore(
-    grid: &mut Vec<Vec<u8>>,
-    spos: u32,
-    di: usize,
-    moves: &Vec<Vec<usize>>,
-    scnt: usize,
-    cache: &mut HashMap<u32, usize>,
-) -> usize {
-    let mut tot = 0;
-    let cache_key = (spos & 0xFFFFFF) | ((di as u32) << 24);
-    if cache.contains_key(&cache_key) {
-        return *cache.get(&cache_key).unwrap();
-    }
+fn explore(b: &Board, spos: u32, di: u32, scnt: u32, cache: &mut FxHashMap<u32, u64>) -> u64 {
     if scnt == 0 {
         return 1;
     }
-    // try to move each of the sheep if possible
-    for i in 0..grid[0].len() {
-        let r = ((spos >> (i * 3)) & 0x7) as usize;
-        if r != 0x7 {
-            if r == grid.len() - 1 || grid[r + 1][i] == b'@' {
-                // this sheep is safe
-                continue;
-            }
-            // move down if possible
-            let npos = if (r * 8 + i + 8) != di || grid[r + 1][i] == b'#' { spos + (1 << (i * 3)) } else { spos };
-            if npos == spos && scnt > 1 {
-                continue;
-            }
-            // try all dragon moves from current dragon position
-            for ndi in moves[di].iter() {
-                let nr = ndi / 8;
-                let nc = ndi % 8;
-                if npos >> (nc * 3) & 7 == nr as u32 && grid[nr][nc] == b'.' {
-                    // eat the sheep
-                    tot += explore(grid, npos | (0x7 << (nc * 3)), *ndi, moves, scnt - 1, cache);
-                } else {
-                    tot += explore(grid, npos, *ndi, moves, scnt, cache);
-                }
+    let key = spos | (di << 24);
+    if let Some(&v) = cache.get(&key) {
+        return v;
+    }
+    let mut tot = 0;
+    for c in 0..b.width {
+        let r = (spos >> (c * 3)) & 7;
+        if r == 7 || r == b.stop[c] {
+            continue;
+        }
+        // a sheep can't step onto the dragon outside a hideout; it passes only if it's the last one
+        let below = (r + 1) * 8 + c as u32;
+        let blocked = below == di && (b.hide >> below) & 1 == 0;
+        if blocked && scnt > 1 {
+            continue;
+        }
+        let npos = if blocked { spos } else { spos + (1 << (c * 3)) };
+        let mut m = b.moves[di as usize];
+        while m != 0 {
+            let ndi = m.trailing_zeros();
+            m &= m - 1;
+            let (nr, nc) = (ndi / 8, ndi % 8);
+            if ((npos >> (nc * 3)) & 7) == nr && (b.hide >> ndi) & 1 == 0 {
+                tot += explore(b, npos | (7 << (nc * 3)), ndi, scnt - 1, cache);
+            } else {
+                tot += explore(b, npos, ndi, scnt, cache);
             }
         }
     }
-    cache.insert(cache_key, tot);
+    cache.insert(key, tot);
     tot
 }
 
 pub fn part3(input: &str) -> String {
     let mut grid = input.lines().map(|line| line.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
-    let dpos = find_dragon(&mut grid);
-    let mut spos = !0u32;
-    let mut scnt = 0;
-    for i in 0..grid[0].len() {
-        if grid[0][i] == b'S' {
-            spos &= !(0x7 << (i * 3));
-            scnt += 1;
-            grid[0][i] = b'.';
-        }
-        for j in (0..grid.len()).rev() {
-            // hideout at the bottom is basically safe zone
-            if grid[j][i] == b'#' && (j == grid.len() - 1 || grid[j + 1][i] == b'@') {
-                grid[j][i] = b'@';
+    let (dr, dc) = find_dragon(&mut grid);
+    let (h, w) = (grid.len(), grid[0].len());
+    assert!(w <= 8 && h <= 7, "grid {w}x{h} too large for the state encoding");
+    let mut b = Board { moves: [0; 64], hide: 0, stop: [0; 8], width: w };
+    let ofs = [(-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2), (2, 1), (2, -1), (1, -2)];
+    for r in 0..h {
+        for c in 0..w {
+            let idx = r * 8 + c;
+            if grid[r][c] == b'#' {
+                b.hide |= 1 << idx;
+            }
+            for &(or, oc) in ofs.iter() {
+                let (nr, nc) = (r as i32 + or, c as i32 + oc);
+                if nr >= 0 && nr < h as i32 && nc >= 0 && nc < w as i32 {
+                    b.moves[idx] |= 1 << (nr as usize * 8 + nc as usize);
+                }
             }
         }
     }
-    let moves = precompute_dragon_moves(&mut grid);
-    let mut cache = HashMap::new();
-    explore(&mut grid, spos, dpos.0 * 8 + dpos.1, &moves, scnt, &mut cache).to_string()
+    let mut spos = (1u32 << (w * 3)) - 1; // every column starts as "no sheep"
+    let mut scnt = 0;
+    for c in 0..w {
+        if grid[0][c] == b'S' {
+            spos &= !(7 << (c * 3));
+            scnt += 1;
+        }
+        // hideouts running down to the bottom edge are safe forever
+        let mut s = h - 1;
+        while s > 0 && grid[s][c] == b'#' {
+            s -= 1;
+        }
+        b.stop[c] = s as u32;
+    }
+    let mut cache = FxHashMap::with_capacity_and_hasher(1 << 17, Default::default());
+    explore(&b, spos, (dr * 8 + dc) as u32, scnt, &mut cache).to_string()
 }
 
 #[cfg(test)]

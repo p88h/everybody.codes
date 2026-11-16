@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 struct Grid {
     data: Vec<Vec<u16>>,
     start: (usize, usize),
@@ -72,9 +70,9 @@ impl Grid {
 
     fn search(self: &Self, goal1: (usize, usize), goal2: (usize, usize), radius: usize) -> Vec<usize> {
         let mut queues: Vec<Vec<(usize, usize)>> = vec![Vec::new(); 1000];
-        let mut visited = HashSet::new();
+        let mut visited = vec![false; self.width * self.height];
         queues[0].push(self.start);
-        visited.insert(self.start);
+        visited[self.start.1 * self.width + self.start.0] = true;
         let mut costs = vec![];
 
         for cost in 0..queues.len() {
@@ -95,10 +93,11 @@ impl Grid {
                     if self.data[ny][nx] >> 8 <= radius as u16 {
                         continue;
                     }
-                    if !visited.contains(&npos) {
+                    let vi = ny * self.width + nx;
+                    if !visited[vi] {
                         let new_cost = cost + (self.data[ny][nx] & 0xFF) as usize;
                         queues[new_cost].push(npos);
-                        visited.insert(npos);
+                        visited[vi] = true;
                     }
                 }
             }

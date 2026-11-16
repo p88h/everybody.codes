@@ -1,6 +1,7 @@
 pub mod algo {
     pub mod bellman_ford;
     pub mod binary_search;
+    pub mod fxhash;
     pub mod bitplane;
     pub mod math;
     pub mod union_find;
