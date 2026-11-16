@@ -9,8 +9,16 @@ pub struct FxHasher(u64);
 
 impl Hasher for FxHasher {
     fn write(&mut self, bytes: &[u8]) {
-        for &b in bytes {
-            self.write_u64(b as u64);
+        // 8 bytes per step; the tail is zero-padded, and slices hash their length separately
+        let mut chunks = bytes.chunks_exact(8);
+        for c in &mut chunks {
+            self.write_u64(u64::from_le_bytes(c.try_into().unwrap()));
+        }
+        let rest = chunks.remainder();
+        if !rest.is_empty() {
+            let mut buf = [0u8; 8];
+            buf[..rest.len()].copy_from_slice(rest);
+            self.write_u64(u64::from_le_bytes(buf));
         }
     }
     fn write_u8(&mut self, i: u8) {
