@@ -228,9 +228,9 @@ fn group_repeated(r: Repeated) -> (u64, u64) {
     if pieces(r.unit.len(), 1 << 16) == 1 {
         return group_repeated_in_pool(r);
     }
-    // The steps only work on one unit, so their parallel pieces are small: with more threads
-    // than this machine's 6 performance cores, the slower cores hold up every step.
-    static POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPoolBuilder::new().num_threads(6).build().unwrap());
+    // The steps only work on one unit, so their parallel pieces are small:
+    // more threads would not improve performance significantly or would worsen it.
+    static POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPoolBuilder::new().num_threads(4).build().unwrap());
     POOL.install(|| group_repeated_in_pool(r))
 }
 
