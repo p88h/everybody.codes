@@ -139,26 +139,21 @@ impl Repeated {
     }
 }
 
-/// Lays out the gaps moved by flips `ts` out of `m`
-fn lay_out<'a>(ts: Range<usize>, m: usize, gap: impl Fn(usize) -> &'a [u8] + Sync) -> Vec<u8> {
-    let chunk = ts.len().div_ceil(pieces(ts.len(), 1 << 12)).max(1);
-    let mut parts: Vec<Vec<u8>> = ts
-        .clone()
+/// Lays out gaps 0..k as rev(gap k-1), gap 0, rev(gap k-2), gap 1, ..., rev(gap 0), gap k-1.
+fn zigzag<'a>(k: usize, gap: impl Fn(usize) -> &'a [u8] + Sync) -> Vec<u8> {
+    let chunk = k.div_ceil(pieces(k, 1 << 12)).max(1);
+    let parts: Vec<Vec<u8>> = (0..k)
         .into_par_iter()
         .step_by(chunk)
-        .map(|t0| {
+        .map(|i0| {
             let mut part = Vec::new();
-            for t in (t0..(t0 + chunk).min(ts.end)).rev() {
-                if t % 2 == 0 {
-                    part.extend(gap(t / 2).iter().rev());
-                } else {
-                    part.extend_from_slice(gap(m - 1 - t / 2));
-                }
+            for i in i0..(i0 + chunk).min(k) {
+                part.extend(gap(k - 1 - i).iter().rev());
+                part.extend_from_slice(gap(i));
             }
             part
         })
         .collect();
-    parts.reverse();
     parts.concat()
 }
 
@@ -169,58 +164,44 @@ fn group_step(r: &Repeated) -> Option<((u64, u64), Repeated)> {
     if r.reps % 2 == 1 && r.colours > 2 {
         return None;
     }
-
-    // The unit starts with the run that is grouped next: unit = c^a v. Without it, the rest is
-    // (v c^a)^(reps - 1) v. Each copy of w = v c^a has the pairs of v, except that its last block
-    // also holds the next copy's c^a; if v ends in a gap instead, that gap gets a block of c^a.
+    let (n, len) = (r.reps as u64, r.unit.len() as u64);
     let c = r.unit[0];
     let a = r.unit.iter().take_while(|&&b| b == c).count();
-    let vs = split(&r.unit, c, a);
-    let v_end = vs.tail();
-    let q = vs.len() + usize::from(!v_end.is_empty());
-    let w_gap = |k: usize| if k < vs.len() { vs.gap(k) } else { v_end.clone() };
-    let gap = |j: usize| &r.unit[w_gap(j % q)];
-    let block = |j: usize| {
-        let k = j % q;
-        let block = if k < vs.len() { vs.block(k) } else { 0 };
-        if k == q - 1 { block + a as u64 } else { block }
-    };
 
-    // The final copy is v, short of c^a: its last block is a shorter, or if v ends in a gap, it
-    // has one pair fewer and that gap is left over at the end.
-    let m = r.reps * q - usize::from(!v_end.is_empty());
+    if r.unit[r.unit.len() - 1] == c {
+        // The first flip reverses everything after the leading run: unit = c^a v becomes
+        // c^a rev(v), which ends in a gap, as v starts with one.
+        let mut unit = r.unit[..a].to_vec();
+        unit.extend(r.unit[a..].iter().rev());
+        let ((flips, flipped), rest) = group_step(&Repeated { unit, ..*r })?;
+        return Some(((flips + 1, flipped + len * n - a as u64), rest));
+    }
 
-    // As in `group`, flip t moves gap t/2 (reversed) and block m-1-t/2 when t is even, else gap
-    // m-1-t/2 and block t/2, and adds (t + 1) times what it moves. That repeats every 2q flips,
-    // so add up flips t, t + 2q, ... together: Σ (t' + 1) is an arithmetic series.
-    let size = |t: usize| {
-        let (g, b) = if t % 2 == 0 { (t / 2, m - 1 - t / 2) } else { (m - 1 - t / 2, t / 2) };
-        gap(g).len() as u64 + block(b)
-    };
-    let mut flipped: u64 = (0..m.min(2 * q))
-        .into_par_iter()
-        .with_min_len(1 << 10)
-        .map(|t| {
-            let count = ((m - 1 - t) / (2 * q) + 1) as u64;
-            size(t) * (count * (t as u64 + 1) + (2 * q) as u64 * count * (count - 1) / 2)
-        })
-        .sum();
-    if v_end.is_empty() {
-        // flip 0 moves the final copy's last block, which is a shorter
-        flipped -= a as u64;
+    // unit = X0 A0 X1 A1 ... X(k-1) A(k-1), with c runs Xi (X0 = c^a) and gaps Ai
+    let sp = split(&r.unit, c, a);
+    let k = sp.len() + 1;
+    let x = |i: usize| if i == 0 { a as u64 } else { sp.block(i - 1) };
+    let gap = |i: usize| &r.unit[if i < sp.len() { sp.gap(i) } else { sp.tail() }];
+
+    // All copies but the leading X0 are blocks to flip. The flipped elements add up to a closed
+    // form with even reps; with odd reps, which only happens for the last colour, each pair of
+    // c run and gap from the other end also counts once per flip before the one that moves it.
+    let flips = n * k as u64 - 1;
+    let mut flipped = n / 2 * len * (k as u64 * (n + n % 2) - 1);
+    if n % 2 == 1 {
+        flipped += (0..k)
+            .into_par_iter()
+            .with_min_len(1 << 10)
+            .map(|i| (x(i) + gap(k - 1 - i).len() as u64) * (2 * i).min(2 * (k - i) - 1) as u64)
+            .sum::<u64>();
     }
 
     // with one colour left, it's all one group and nothing needs laying out
     if r.colours <= 2 {
-        return Some(((m as u64, flipped), Repeated { unit: Vec::new(), reps: 0, colours: 1 }));
+        return Some(((flips, flipped), Repeated { unit: Vec::new(), reps: 0, colours: 1 }));
     }
-
-    // The gaps are laid out from flip m-1 down to flip 0, and that repeats every 2q flips; the
-    // gap left over at the end, if any, is what flip -1 would move. So the rest is reps/2 copies
-    // of flips 2q-1 down to 0, or of 2q-2 down to -1.
-    let mut unit = lay_out(0..2 * q - usize::from(!v_end.is_empty()), m, gap);
-    unit.extend_from_slice(&r.unit[v_end]);
-    Some(((m as u64, flipped), Repeated { unit, reps: r.reps / 2, colours: r.colours - 1 }))
+    let unit = zigzag(k, gap);
+    Some(((flips, flipped), Repeated { unit, reps: r.reps / 2, colours: r.colours - 1 }))
 }
 
 /// `group` on a repeated string, finishing on the plain string once there are too few repeats.
