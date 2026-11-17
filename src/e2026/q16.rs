@@ -1,5 +1,7 @@
 use rayon::prelude::*;
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::ops::Range;
+use std::sync::LazyLock;
 
 fn pieces(len: usize, min: usize) -> usize {
     if len < min { 1 } else { rayon::current_num_threads() }
@@ -121,26 +123,19 @@ fn group(mut s: Vec<u8>) -> (u64, u64) {
     (flips, flipped)
 }
 
-/// `unit` repeated `reps` times, followed by `tail`, made of `colours` distinct colours.
+/// `unit` repeated `reps` times, made of `colours` distinct colours.
 struct Repeated {
     unit: Vec<u8>,
     reps: usize,
-    tail: Vec<u8>,
     colours: usize,
 }
 
 impl Repeated {
-    fn new(unit: Vec<u8>, reps: usize, tail: Vec<u8>) -> Self {
+    fn new(unit: Vec<u8>, reps: usize) -> Self {
         let mut seen = [false; 256];
-        unit.iter().chain(&tail).for_each(|&b| seen[b as usize] = true);
+        unit.iter().for_each(|&b| seen[b as usize] = true);
         let colours = seen.iter().filter(|&&s| s).count();
-        Repeated { unit, reps, tail, colours }
-    }
-
-    fn flatten(&self) -> Vec<u8> {
-        let mut s = self.unit.repeat(self.reps);
-        s.extend_from_slice(&self.tail);
-        s
+        Repeated { unit, reps, colours }
     }
 }
 
@@ -167,129 +162,89 @@ fn lay_out<'a>(ts: Range<usize>, m: usize, gap: impl Fn(usize) -> &'a [u8] + Syn
     parts.concat()
 }
 
-/// One colour of `group` on a repeated string: returns `(flips, flipped)` and the next step.
+/// One colour of `group` on a repeated string: returns `(flips, flipped)` and what's left, again
+/// as a repeated string. Returns `None` when what's left can't be written that way.
 fn group_step(r: &Repeated) -> Option<((u64, u64), Repeated)> {
-    // the unit starts with the run that is grouped next: unit = c^a v
-    let c = r.unit[0];
-    let a = r.unit.iter().take_while(|&&b| b == c).count();
-    if a == r.unit.len() {
-        let tail = [&[c], &r.tail[..]].concat();
-        return Some(((0, 0), Repeated::new(Vec::new(), 0, tail)));
-    }
-    if r.reps < 2 {
+    // what's left repeats with half the reps, so they must be even, unless nothing is left
+    if r.reps % 2 == 1 && r.colours > 2 {
         return None;
     }
 
-    // Without the leading c^a, the rest is (v c^a)^(reps - 1) v tail. 
-    // Each copy of w = v c^a has the pairs of v, except that the last block 
-    // (which also holds the next copy's c^a). 
-    // if v ends in a gap instead, that gap gets a block of just c^a.
+    // The unit starts with the run that is grouped next: unit = c^a v. Without it, the rest is
+    // (v c^a)^(reps - 1) v. Each copy of w = v c^a has the pairs of v, except that its last block
+    // also holds the next copy's c^a; if v ends in a gap instead, that gap gets a block of c^a.
+    let c = r.unit[0];
+    let a = r.unit.iter().take_while(|&&b| b == c).count();
     let vs = split(&r.unit, c, a);
     let v_end = vs.tail();
     let q = vs.len() + usize::from(!v_end.is_empty());
-    let w_gap = |j: usize| if j < vs.len() { vs.gap(j) } else { v_end.clone() };
-    let w_block = |j: usize| {
-        let block = if j < vs.len() { vs.block(j) } else { 0 };
-        if j == q - 1 { block + a as u64 } else { block }
-    };
-
-    // The final copy v tail starts with the same q - 1 pairs. 
-    // Its last pair runs into the tail so only that stretch is copied.    
-    let joint_end = match r.tail.iter().position(|&b| b == c) {
-        Some(i) => i + r.tail[i..].iter().take_while(|&&b| b == c).count(),
-        None => r.tail.len(),
-    };
-    let joint = [&r.unit[w_gap(q - 1).start..], &r.tail[..joint_end]].concat();
-    let (js, ts) = (split(&joint, c, 0), split(&r.tail, c, joint_end));
-
-    // gaps and blocks 0..periodic come from the copies of w, 
-    // then the q - 1 + joint + tail pairs of the final copy
-    let periodic = (r.reps - 1) * q;
-    let (in_joint, in_tail) = (q - 1, q - 1 + js.len());
-    let m = periodic + in_tail + ts.len();
-    let p = m - periodic;
-    let gap = |j: usize| {
-        let k = if j < periodic { j % q } else { j - periodic };
-        if j < periodic || k < in_joint {
-            &r.unit[w_gap(k)]
-        } else if k < in_tail {
-            &joint[js.gap(k - in_joint)]
-        } else {
-            &r.tail[ts.gap(k - in_tail)]
-        }
-    };
+    let w_gap = |k: usize| if k < vs.len() { vs.gap(k) } else { v_end.clone() };
+    let gap = |j: usize| &r.unit[w_gap(j % q)];
     let block = |j: usize| {
-        let k = if j < periodic { j % q } else { j - periodic };
-        if j < periodic || k < in_joint {
-            w_block(k)
-        } else if k < in_tail {
-            js.block(k - in_joint)
-        } else {
-            ts.block(k - in_tail)
-        }
+        let k = j % q;
+        let block = if k < vs.len() { vs.block(k) } else { 0 };
+        if k == q - 1 { block + a as u64 } else { block }
     };
+
+    // The final copy is v, short of c^a: its last block is a shorter, or if v ends in a gap, it
+    // has one pair fewer and that gap is left over at the end.
+    let m = r.reps * q - usize::from(!v_end.is_empty());
 
     // As in `group`, flip t moves gap t/2 (reversed) and block m-1-t/2 when t is even, else gap
-    // m-1-t/2 and block t/2. From flip 2p on, both come from copies of w as long as the middle
-    // does, so flips t and t + 2q move the same sizes.
-    if (m - 1) / 2 >= periodic || m < 2 * p + 2 * q {
-        return None;
-    }
+    // m-1-t/2 and block t/2, and adds (t + 1) times what it moves. That repeats every 2q flips,
+    // so add up flips t, t + 2q, ... together: Σ (t' + 1) is an arithmetic series.
     let size = |t: usize| {
         let (g, b) = if t % 2 == 0 { (t / 2, m - 1 - t / 2) } else { (m - 1 - t / 2, t / 2) };
         gap(g).len() as u64 + block(b)
     };
-
-    // flip t adds (t + 1) times what it moves
-    let mut flipped: u64 = (0..2 * p).into_par_iter().with_min_len(1 << 10).map(|t| (t as u64 + 1) * size(t)).sum();
-    flipped += (2 * p..2 * p + 2 * q)
+    let mut flipped: u64 = (0..m.min(2 * q))
         .into_par_iter()
         .with_min_len(1 << 10)
         .map(|t| {
-            // flips t, t + 2q, ... below m: Σ (t' + 1) is an arithmetic series
             let count = ((m - 1 - t) / (2 * q) + 1) as u64;
             size(t) * (count * (t as u64 + 1) + (2 * q) as u64 * count * (count - 1) / 2)
         })
-        .sum::<u64>();
+        .sum();
+    if v_end.is_empty() {
+        // flip 0 moves the final copy's last block, which is a shorter
+        flipped -= a as u64;
+    }
 
     // with one colour left, it's all one group and nothing needs laying out
     if r.colours <= 2 {
-        let done = Repeated { unit: Vec::new(), reps: 0, tail: Vec::new(), colours: 1 };
-        return Some(((m as u64, flipped), done));
+        return Some(((m as u64, flipped), Repeated { unit: Vec::new(), reps: 0, colours: 1 }));
     }
 
-    // The last 2q flips form the new unit, which repeats for as many whole periods as there are
-    // flips from 2p on; the remaining flips go to the tail.
-    let reps = (m - 2 * p) / (2 * q);
-    let mut tail = lay_out(0..m - reps * 2 * q, m, gap);
-    tail.extend_from_slice(&joint[js.tail()]);
-    tail.extend_from_slice(&r.tail[ts.tail()]);
-    let unit = lay_out(m - 2 * q..m, m, gap);
-    Some(((m as u64, flipped), Repeated { unit, reps, tail, colours: r.colours - 1 }))
+    // The gaps are laid out from flip m-1 down to flip 0, and that repeats every 2q flips; the
+    // gap left over at the end, if any, is what flip -1 would move. So the rest is reps/2 copies
+    // of flips 2q-1 down to 0, or of 2q-2 down to -1.
+    let mut unit = lay_out(0..2 * q - usize::from(!v_end.is_empty()), m, gap);
+    unit.extend_from_slice(&r.unit[v_end]);
+    Some(((m as u64, flipped), Repeated { unit, reps: r.reps / 2, colours: r.colours - 1 }))
 }
 
 /// `group` on a repeated string, finishing on the plain string once there are too few repeats.
 fn group_repeated(r: Repeated) -> (u64, u64) {
-    // Run on a rayon worker when there is parallel work
-    if pieces(r.unit.len() + r.tail.len(), 1 << 16) == 1 {
-        group_repeated_in_pool(r)
-    } else {
-        rayon::scope(|_| group_repeated_in_pool(r))
+    if pieces(r.unit.len(), 1 << 16) == 1 {
+        return group_repeated_in_pool(r);
     }
+    // The steps only work on one unit, so their parallel pieces are small: with more threads
+    // than this machine's 6 performance cores, the slower cores hold up every step.
+    static POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPoolBuilder::new().num_threads(6).build().unwrap());
+    POOL.install(|| group_repeated_in_pool(r))
 }
 
 fn group_repeated_in_pool(mut r: Repeated) -> (u64, u64) {
     let (mut flips, mut flipped) = (0, 0);
-    while r.colours > 1 && r.reps > 0 && !r.unit.is_empty() {
-        let Some(((f, fl), next)) = group_step(&r) else { break };
+    while r.colours > 1 {
+        let Some(((f, fl), next)) = group_step(&r) else {
+            let (f, fl) = group(r.unit.repeat(r.reps));
+            return (flips + f, flipped + fl);
+        };
         (flips, flipped) = (flips + f, flipped + fl);
         r = next;
     }
-    if r.colours <= 1 {
-        return (flips, flipped);
-    }
-    let (f, fl) = group(r.flatten());
-    (flips + f, flipped + fl)
+    (flips, flipped)
 }
 
 pub fn part1(input: &str) -> String {
@@ -298,12 +253,12 @@ pub fn part1(input: &str) -> String {
 
 pub fn part2(input: &str) -> String {
     let unit = input.trim().as_bytes().to_vec();
-    group_repeated(Repeated::new(unit, 10, Vec::new())).1.to_string()
+    group_repeated(Repeated::new(unit, 10)).1.to_string()
 }
 
 pub fn part3(input: &str) -> String {
     let unit = input.trim().as_bytes().to_vec();
-    group_repeated(Repeated::new(unit, 100, Vec::new())).1.to_string()
+    group_repeated(Repeated::new(unit, 100)).1.to_string()
 }
 
 #[cfg(test)]
