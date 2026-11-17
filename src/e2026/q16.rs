@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::ops::Range;
 
-/// How many pieces to split `len` bytes of work into: one, unless it is worth going parallel.
+// The number of parallel pieces to split the input into.
 fn pieces(len: usize) -> usize {
     if len < 1 << 16 { 1 } else { rayon::current_num_threads() * 4 }
 }
@@ -24,7 +24,7 @@ fn split_range(s: &[u8], c: u8, from: usize, to: usize) -> (Vec<Range<usize>>, V
     }
 }
 
-/// runs split_range in parallel over `s[from..]`; applying cuts in safe places.
+/// Runs split_range in parallel over `s[from..]`; applying cuts in safe places.
 fn split(s: &[u8], c: u8, from: usize) -> (Vec<Range<usize>>, Vec<u64>, usize) {
     let pieces = pieces(s.len() - from);
     let mut cuts = vec![from];
