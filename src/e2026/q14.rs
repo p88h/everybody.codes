@@ -10,7 +10,7 @@ fn parse(input: &str) -> (Vec<u8>, usize) {
 }
 
 // Match each cell horizontally and vertically with its neighbor 
-fn for_each_adjacent(cells: &[u8], stride: usize, mut f: impl FnMut(usize, usize, bool)) {
+pub(crate) fn for_each_adjacent(cells: &[u8], stride: usize, mut f: impl FnMut(usize, usize, bool)) {
     let len = cells.len();
     for step in [1, stride] {
         for a in 0..len {
