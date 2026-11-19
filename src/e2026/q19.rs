@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use rayon::prelude::*;
 
-/// Colour produced by overlaying two colours.
 fn mix(c1: u8, c2: u8) -> u8 {
     match (c1.min(c2), c1.max(c2)) {
         (a, b) if a == b => a,
@@ -13,27 +12,22 @@ fn mix(c1: u8, c2: u8) -> u8 {
 }
 
 pub fn solve(input: &str, mapping: &[u8]) -> usize {
-    // find the double newline
     let split = input.find("\n\n").unwrap();
     let width = input.find('\n').unwrap();
     let height = (split + 1) / (width + 1);
-    // read both grids as u8 arrays
     let grid1 = input[..split].as_bytes();
     let grid2 = input[split + 2..].as_bytes();
-    // combine characters from both grids
     let mut counters = [0usize; 26];
     for i in 0..height {
         for j in 0..width {
             let c1 = grid1[i * (width + 1) + j];
             let mut c2 = grid2[i * (width + 1) + j];
-            // digits 1..=4 are placeholders, resolved through the mapping
             if (b'1'..=b'4').contains(&c2) {
                 c2 = mapping[(c2 - b'1') as usize];
             }
             counters[(mix(c1, c2) - b'A') as usize] += 1;
         }
     }
-    // sort the counters in descending order
     counters.sort_unstable_by(|a, b| b.cmp(a));
     counters[0] * counters[1] * counters[2]
 }
