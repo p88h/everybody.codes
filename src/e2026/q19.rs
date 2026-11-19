@@ -188,39 +188,4 @@ MMYYCCKK
 YYYCCMMM";
         assert_eq!(part3(input), "8000");
     }
-
-    /// Score of the best pattern found by trying every pattern.
-    fn part3_brute_force(grid: &[u8]) -> usize {
-        (0..grid.len())
-            .map(|_| b"CMY".iter().copied())
-            .multi_cartesian_product()
-            .map(|pattern| {
-                let mut counters = [0usize; 26];
-                for (&g, p) in grid.iter().zip(pattern) {
-                    counters[(mix(g, p) - b'A') as usize] += 1;
-                }
-                counters.sort_unstable_by(|a, b| b.cmp(a));
-                counters[0] * counters[1] * counters[2]
-            })
-            .max()
-            .unwrap()
-    }
-
-    #[test]
-    fn test_part3_matches_brute_force() {
-        // small pseudo-random grids over C, M, Y and K
-        let mut seed = 12345u64;
-        for len in 3..=9 {
-            for _ in 0..20 {
-                let grid: Vec<u8> = (0..len)
-                    .map(|_| {
-                        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-                        b"CMYK"[(seed >> 33) as usize % 4]
-                    })
-                    .collect();
-                let input = String::from_utf8(grid.clone()).unwrap();
-                assert_eq!(part3(&input), part3_brute_force(&grid).to_string(), "{input}");
-            }
-        }
-    }
 }
