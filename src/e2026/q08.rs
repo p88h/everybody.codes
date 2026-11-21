@@ -1,148 +1,144 @@
 // Cells are stored mod 12: digits 1-9 become 0-8, 'a'-'c' become 9-11, and a growing
-// plant wraps from 11 back to 0. Cells outside the hexagon are never visited.
+// plant wraps from 11 back to 0.
 const GROWN: u8 = 9;
 const CYCLE: u8 = 12;
 
-fn parse_grid(input: &str) -> (Vec<u8>, usize, usize) {
-    let rows: Vec<&[u8]> = input.lines().map(str::as_bytes).collect();
-    let height = rows.len();
-    let width = rows[0].len();
-    let grid = rows
-        .into_iter()
-        .flatten()
-        .map(|&c| match c {
-            b'1'..=b'9' => c - b'1',
-            _ => 0,
-        })
-        .collect();
-    (grid, height, width)
+// Hexagon stored in axial coordinates (r = input row, j = (col + row - middle) / 2), sliced into
+// rows f = r + j. Every ray direction then moves to row f +- 1 (or f +- 2 for (+-1, +-1)), and within
+// a row the lane g = r - f / 2 + middle / 2 shifts by at most one, so a whole step is a sweep over the
+// rows with one 16-lane vector each. Lanes outside the hexagon hold PAD: it acts like a fully grown
+// plant for the light (never energized, keeps the shadow at or below zero) but never changes.
+const LANES: usize = 16;
+const PAD: u8 = u8::MAX;
+type Row = [u8; LANES];
+
+#[derive(Clone)]
+struct Hex {
+    rows: Vec<Row>,
 }
 
-// A ray start as (cell index, number of cells in the hexagon along the ray).
-fn start_edge(height: usize, width: usize, (dr, dc): (isize, isize)) -> Vec<(usize, usize)> {
-    let middle = height / 2;
-    let center_left = 0;
-    let center_right = width as isize - 1;
-    let top_left = middle as isize;
-    let top_right = 3 * middle as isize;
-
-    let (mut i, mut j, (first_dr, first_dc), (second_dr, second_dc)) = match (dr, dc) {
-        (1, 1) => (middle as isize, center_left, (-1, 1), (0, 2)),
-        (1, -1) => (middle as isize, center_right, (-1, -1), (0, -2)),
-        (-1, 1) => (middle as isize, center_left, (1, 1), (0, 2)),
-        (-1, -1) => (middle as isize, center_right, (1, -1), (0, -2)),
-        (0, -2) => (0, top_right, (1, 1), (1, -1)),
-        (0, 2) => (0, top_left, (1, -1), (1, 1)),
-        _ => unreachable!(),
-    };
-
-    // The n-th start along the two edges always has a ray of 2 * middle + 1 - |n - middle| cells.
-    let mut n = 0usize;
-    let mut ray = |i: isize, j: isize| {
-        let len = 2 * middle + 1 - n.abs_diff(middle);
-        n += 1;
-        (i as usize * width + j as usize, len)
-    };
-
-    let mut starts = Vec::new();
-    starts.push(ray(i, j));
-    for _ in 0..middle {
-        i += first_dr;
-        j += first_dc;
-        starts.push(ray(i, j));
-    }
-    for _ in 0..middle {
-        i += second_dr;
-        j += second_dc;
-        starts.push(ray(i, j));
-    }
-    starts
-}
-
-// Transition table indexed by shadow * CYCLE + cell. Each entry packs the new cell value (bits 0-3),
-// the next shadow (bits 4-7), whether the cell was energized (bit 8) and whether it became fully
-// grown (bit 9).
-const TRANSITIONS: [u16; 10 * CYCLE as usize] = {
-    let mut table = [0; 10 * CYCLE as usize];
-    let mut shadow = 0;
-    while shadow < 10 {
-        let mut v = 0;
-        while v < CYCLE {
-            // Shadowed young plants don't grow; fully grown ones always advance.
-            let energized = v < GROWN && v >= shadow;
-            let next_shadow = if energized { v + 1 } else { shadow };
-            let next_v = if energized || v >= GROWN { (v + 1) % CYCLE } else { v };
-            let grown = energized && v == GROWN - 1;
-            table[(shadow * CYCLE + v) as usize] = next_v as u16
-                | (next_shadow.saturating_sub(1) as u16) << 4
-                | (energized as u16) << 8
-                | (grown as u16) << 9;
-            v += 1;
+impl Hex {
+    fn parse(input: &str) -> Hex {
+        let lines: Vec<&[u8]> = input.lines().map(str::as_bytes).collect();
+        let middle = lines.len() / 2;
+        let mut rows = vec![[PAD; LANES]; 4 * middle + 1];
+        for (r, line) in lines.iter().enumerate() {
+            for (col, &c) in line.iter().enumerate() {
+                if c == b'.' {
+                    continue;
+                }
+                let j = (col + r - middle) / 2;
+                let f = r + j;
+                let g = r + middle / 2 - f / 2;
+                assert!(g < LANES, "hexagon too large for {LANES} lanes");
+                rows[f][g] = c - b'1';
+            }
         }
-        shadow += 1;
+        Hex { rows }
     }
-    table
-};
 
-fn grow(grid: &mut [u8], step: isize, starts: &[(usize, usize)]) -> (usize, usize) {
-    let mut energy = 0;
-    let mut grown = 0;
-
-    for &(start, len) in starts {
-        let mut pos = start as isize;
-        // Lowest value that still receives energy; each cell passed lowers it by one.
-        let mut shadow = 0;
-
-        for _ in 0..len {
-            let cell = &mut grid[pos as usize];
-            let t = TRANSITIONS[shadow * CYCLE as usize + *cell as usize] as usize;
-            *cell = (t & 15) as u8;
-            shadow = (t >> 4) & 15;
-            energy += (t >> 8) & 1;
-            grown += t >> 9;
-            pos += step;
+    fn grow(&mut self, (dr, dc): (isize, isize)) -> (usize, usize) {
+        let mut counts = Counts::default();
+        let rows = &mut self.rows;
+        match (dr, dc) {
+            (1, 1) => sweep_diagonal(rows.iter_mut().enumerate(), &mut counts),
+            (-1, -1) => sweep_diagonal(rows.iter_mut().rev().enumerate(), &mut counts),
+            // Within a row f, lanes shift by `EVEN` or `ODD` when moving on, depending on f's parity.
+            (0, 2) => sweep::<0, -1>(rows.iter_mut().enumerate(), &mut counts),
+            (1, -1) => sweep::<1, 0>(rows.iter_mut().enumerate(), &mut counts),
+            (0, -2) => sweep::<1, 0>(rows.iter_mut().enumerate().rev(), &mut counts),
+            (-1, 1) => sweep::<0, -1>(rows.iter_mut().enumerate().rev(), &mut counts),
+            _ => unreachable!(),
         }
+        counts.totals()
     }
-    (energy, grown)
 }
 
-fn step((dr, dc): (isize, isize), width: usize) -> isize {
-    dr * width as isize + dc
+#[derive(Default)]
+struct Counts {
+    energy: Row,
+    grown: Row,
+}
+
+impl Counts {
+    fn totals(&self) -> (usize, usize) {
+        let sum = |a: &Row| a.iter().map(|&x| x as usize).sum::<usize>();
+        (sum(&self.energy), sum(&self.grown))
+    }
+}
+
+// (+-1, +-1) moves two rows per cell and keeps the lane, so rows of each parity form their own chain.
+fn sweep_diagonal<'a>(rows: impl Iterator<Item = (usize, &'a mut Row)>, counts: &mut Counts) {
+    let mut u = [[0; LANES]; 2];
+    for (i, row) in rows {
+        update_row(row, (i / 2) as u8, &mut u[i & 1], counts);
+    }
+}
+
+// Rays that move one row per cell. `rows` yields (row index f, row) in sweep order; the position
+// along the rays is the number of rows swept so far.
+fn sweep<'a, const EVEN: isize, const ODD: isize>(
+    rows: impl Iterator<Item = (usize, &'a mut Row)>,
+    counts: &mut Counts,
+) {
+    let mut u = [0; LANES];
+    for (k, (f, row)) in rows.enumerate() {
+        update_row(row, k as u8, &mut u, counts);
+        u = if f & 1 == 0 { shift_lanes::<EVEN>(u) } else { shift_lanes::<ODD>(u) };
+    }
+}
+
+#[inline(always)]
+fn shift_lanes<const BY: isize>(u: Row) -> Row {
+    let mut out = [0; LANES];
+    match BY {
+        1 => out[1..].copy_from_slice(&u[..LANES - 1]),
+        -1 => out[..LANES - 1].copy_from_slice(&u[1..]),
+        _ => out = u,
+    }
+    out
+}
+
+// u is the running maximum of x = v + 1 + k over the ray so far (see grow above); k is the index of
+// this row along the rays.
+#[inline(always)]
+fn update_row(row: &mut Row, k: u8, u: &mut Row, counts: &mut Counts) {
+    for l in 0..LANES {
+        let v = row[l];
+        let young = v < GROWN;
+        let x = if young { v + 1 + k } else { 0 };
+        let energized = x > u[l];
+        u[l] = u[l].max(x);
+        let advance = energized | (v.wrapping_sub(GROWN) < CYCLE - GROWN);
+        let next = v + advance as u8;
+        row[l] = if next == CYCLE { 0 } else { next };
+        counts.energy[l] += energized as u8;
+        counts.grown[l] += (energized & (v == GROWN - 1)) as u8;
+    }
 }
 
 pub fn part1(input: &str) -> String {
-    let (mut grid, height, width) = parse_grid(input);
-    let direction = (1, 1);
-    let starts = start_edge(height, width, direction);
-    grow(&mut grid, step(direction, width), &starts).0.to_string()
+    Hex::parse(input).grow((1, 1)).0.to_string()
 }
 
 pub fn part2(input: &str) -> String {
-    let (original, height, width) = parse_grid(input);
-    let directions = [(1, 1), (1, -1), (0, -2), (-1, 1), (-1, -1), (0, 2)];
-    directions
+    let original = Hex::parse(input);
+    [(1, 1), (1, -1), (0, -2), (-1, 1), (-1, -1), (0, 2)]
         .iter()
-        .map(|&direction| {
-            let mut grid = original.clone();
-            let starts = start_edge(height, width, direction);
-            grow(&mut grid, step(direction, width), &starts).0
-        })
+        .map(|&direction| original.clone().grow(direction).0)
         .sum::<usize>()
         .to_string()
 }
 
 pub fn part3(input: &str) -> String {
-    let (mut grid, height, width) = parse_grid(input);
+    let mut hex = Hex::parse(input);
     let dirs = [(1, 1), (1, -1), (0, -2), (-1, -1), (-1, 1), (0, 2)];
-    let starts: Vec<Vec<(usize, usize)>> = dirs.iter().map(|&dir| start_edge(height, width, dir)).collect();
-    let steps_by_dir: Vec<isize> = dirs.iter().map(|&dir| step(dir, width)).collect();
     let mut all_grown = 0;
     let mut all_energy = 0;
     let mut steps = 0;
 
     while all_grown < 100_000 {
-        let idx = steps % dirs.len();
-        let (energy, grown) = grow(&mut grid, steps_by_dir[idx], &starts[idx]);
+        let (energy, grown) = hex.grow(dirs[steps % dirs.len()]);
         all_energy += energy;
         all_grown += grown;
         steps += 1;
