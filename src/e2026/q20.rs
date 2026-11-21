@@ -1,49 +1,38 @@
-use itertools::Itertools;
 use rayon::prelude::*;
-
 
 /// number of matchstics needed for every digit and +-= chars
 fn matchsticks(digit: u8) -> usize {
     match digit {
-        b'0' => 6,
-        b'1' => 2,
-        b'2' => 5,
-        b'3' => 5,
+        b'0' | b'6' | b'9' | b'A' => 6,
+        b'1' | b'+' | b'=' => 2,
+        b'2' | b'3' | b'5' => 5,
         b'4' => 4,
-        b'5' => 5,
-        b'6' => 6,
         b'7' => 3,
         b'8' => 7,
-        b'9' => 6,
-        b'+' => 2,
         b'-' => 1,
-        b'=' => 2,
-        b'A' => 6,
         _ => 0,
     }
 }
 
-/// Value of a `+`/`-` expression over non-negative integers (spaces ignored).
-fn eval(expr: &[u8], base: u8) -> i64 {
-    let (mut total, mut num, mut sign) = (0, 0, 1);
-    for &b in expr {
+/// Evaluate expression in place and check equality of both sides
+fn is_correct(line: &[u8], base: u8) -> bool {
+    let (mut total, mut num, mut sign, mut side) = (0, 0, 1, 1);
+    for &b in line {
         match b {
             b'0'..=b'9' => num = num * base as i64 + (b - b'0') as i64,
             b'A'..=b'Z' => num = num * base as i64 + (b - b'A' + 10) as i64,
-            b'+' | b'-' => {
+            b'+' | b'-' | b'=' => {
                 total += sign * num;
                 num = 0;
-                sign = if b == b'+' { 1 } else { -1 };
+                if b == b'=' {
+                    side = -1;
+                }
+                sign = side * if b == b'-' { -1 } else { 1 };
             }
             _ => {}
         }
     }
-    total + sign * num
-}
-
-/// Whether every `=`-separated side of the equation has the same value.
-fn is_correct(line: &[u8], base: u8) -> bool {
-    line.split(|&b| b == b'=').map(|s| eval(s, base)).all_equal()
+    total + sign * num == 0
 }
 
 /// What a symbol becomes when one of its sticks is taken away.
