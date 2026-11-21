@@ -1,4 +1,5 @@
 pub mod algo {
+    pub mod apsp;
     pub mod bellman_ford;
     pub mod binary_search;
     pub mod fxhash;

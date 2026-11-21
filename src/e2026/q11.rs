@@ -1,4 +1,7 @@
+use crate::algo::apsp::DistMatrix;
 use rayon::prelude::*;
+use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::sync::LazyLock;
 
 // adjacency is represented as a bitmask in a u128 for each node
 fn add_edge(adj: &mut [u128], a: usize, b: usize) {
@@ -64,27 +67,17 @@ pub fn part1(input: &str) -> String {
     (ring_distance - total_distance(&adj)).to_string()
 }
 
+// Each task takes only a few µs, so the global pool's 18 threads lose more to waking up and
+// waiting on the efficiency cores than they gain; these sizes measured fastest on a 6P + 12E M-series.
+static PART2_POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPoolBuilder::new().num_threads(4).build().unwrap());
+static PART3_POOL: LazyLock<ThreadPool> = LazyLock::new(|| ThreadPoolBuilder::new().num_threads(8).build().unwrap());
+
 pub fn part2(input: &str) -> String {
     let (adj, ring_distance) = parse(input, 3);
     let n = adj.len();
-    let best = (0..n)
-        .into_par_iter()
-        .map_init(
-            || adj.clone(),
-            |work, a| {
-                (a + 1..n)
-                    .map(|b| {
-                        work.copy_from_slice(&adj);
-                        add_edge(work, a, b);
-                        total_distance(work)
-                    })
-                    .min()
-                    .unwrap_or(usize::MAX)
-            },
-        )
-        .min()
-        .unwrap()
-        .min(total_distance(&adj));
+    let dist = DistMatrix::from_bitsets(&adj);
+    let pairs: Vec<(usize, usize)> = (0..n).flat_map(|a| (a + 1..n).map(move |b| (a, b))).collect();
+    let best = PART2_POOL.install(|| pairs.par_iter().with_min_len(16).map(|&edge| dist.total_with([edge])).min().unwrap());
     (ring_distance - best).to_string()
 }
 
@@ -122,21 +115,29 @@ pub fn part3(input: &str) -> String {
     let (adj, ring_distance) = parse(input, 3);
     let n = adj.len();
     let step = n / 8;
-    let best = (0..step * PAIRINGS.len())
-        .into_par_iter()
-        .map_init(
-            || adj.clone(),
-            |work, i| {
-                let start = i / PAIRINGS.len();
-                work.copy_from_slice(&adj);
-                for &(a, b) in &PAIRINGS[i % PAIRINGS.len()] {
-                    add_edge(work, start + a * step, start + b * step);
-                }
-                total_distance(work)
-            },
-        )
-        .min()
-        .unwrap();
+    let dist = DistMatrix::from_bitsets(&adj);
+    // consecutive pairings share their first two pairs, so add those to the matrix once per three
+    let groups = PAIRINGS.len() / 3;
+    let best = PART3_POOL.install(|| {
+        (0..step * groups)
+            .into_par_iter()
+            .with_min_len(2)
+            .map_init(
+                || dist.clone(),
+                |work, i| {
+                    let start = i / groups;
+                    let edge = |(a, b): (usize, usize)| (start + a * step, start + b * step);
+                    let group = &PAIRINGS[i % groups * 3..][..3];
+                    work.clone_from(&dist);
+                    for (a, b) in [edge(group[0][0]), edge(group[0][1])] {
+                        work.add_edge(a, b);
+                    }
+                    group.iter().map(|pairs| work.total_with([edge(pairs[2]), edge(pairs[3])])).min().unwrap()
+                },
+            )
+            .min()
+            .unwrap()
+    });
     (ring_distance - best).to_string()
 }
 
@@ -152,6 +153,13 @@ mod tests {
             assert_eq!(slots, 255);
             assert!(pairs.iter().all(|&(a, b)| a < b));
             assert!(seen.insert(pairs));
+        }
+    }
+
+    #[test]
+    fn test_pairings_come_in_threes_sharing_two_pairs() {
+        for group in PAIRINGS.chunks(3) {
+            assert!(group.iter().all(|pairs| pairs[..2] == group[0][..2]));
         }
     }
 
