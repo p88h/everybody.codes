@@ -1,98 +1,88 @@
-use std::collections::{HashMap, VecDeque};
+use crate::algo::fxhash::FxHashMap;
+
+/// Columns are stored reversed (front of the column is the last element), so taking the clapper
+/// is a `pop` and the insertion is a single short memmove.
+fn parse(input: &str) -> Vec<Vec<u16>> {
+    let mut cols: Vec<Vec<u16>> = Vec::new();
+    for line in input.lines() {
+        for (i, num) in line.split(' ').filter_map(|s| s.parse::<u16>().ok()).enumerate() {
+            if cols.len() <= i {
+                cols.push(Vec::new());
+            }
+            cols[i].push(num);
+        }
+    }
+    for col in cols.iter_mut() {
+        col.reverse();
+    }
+    cols
+}
+
+/// One round: the clapper from column `*col` dances into the next column, and `*col` advances.
+#[inline(always)]
+fn dance(cols: &mut [Vec<u16>], col: &mut usize) {
+    let first = cols[*col].pop().unwrap();
+    *col += 1;
+    if *col == cols.len() {
+        *col = 0;
+    }
+    let dst = &mut cols[*col];
+    let len = dst.len();
+    // The clapper walks down one side and back up the other; skip the division in the
+    // common case where it doesn't go round more than once.
+    let mut ofs = first as usize - 1;
+    if ofs >= 2 * len {
+        ofs %= 2 * len;
+    }
+    let pos = if ofs < len { ofs } else { 2 * len - ofs };
+    dst.insert(len - pos, first);
+}
+
+fn shout(cols: &[Vec<u16>], digits: u64) -> u64 {
+    cols.iter().fold(0, |acc, col| acc * digits + *col.last().unwrap() as u64)
+}
 
 pub fn part1(input: &str) -> String {
-    let mut cols: Vec<VecDeque<i64>> = Vec::new();
-    for line in input.lines() {
-        let nums = line.split(' ').filter_map(|s| s.parse::<i64>().ok()).collect::<Vec<i64>>();
-        for (i, &num) in nums.iter().enumerate() {
-            if cols.len() <= i {
-                cols.push(VecDeque::new());
-            }
-            cols[i].push_back(num);
-        }
+    let mut cols = parse(input);
+    let mut col = 0;
+    for _ in 0..10 {
+        dance(&mut cols, &mut col);
     }
-    for round in 0..10 {
-        let col = round % cols.len();
-        let first = cols[col].pop_front().unwrap();
-        let dst = (col + 1) % cols.len();
-        let ofs = (first - 1) as usize % (cols[dst].len() * 2);
-        let dst_len = cols[dst].len();
-        if ofs < dst_len {
-            cols[dst].insert(ofs, first);
-        } else {
-            cols[dst].insert(dst_len - (ofs - dst_len), first);
-        }
-    }
-    cols.iter().map(|col| col.front().unwrap().to_string()).collect::<Vec<String>>().join("")
+    cols.iter().map(|col| col.last().unwrap().to_string()).collect::<Vec<String>>().join("")
 }
 
 pub fn part2(input: &str) -> String {
-    let mut cols: Vec<VecDeque<i64>> = Vec::new();
-    for line in input.lines() {
-        let nums = line.split(' ').filter_map(|s| s.parse::<i64>().ok()).collect::<Vec<i64>>();
-        for (i, &num) in nums.iter().enumerate() {
-            if cols.len() <= i {
-                cols.push(VecDeque::new());
-            }
-            cols[i].push_back(num);
-        }
-    }
-    let mut counters = HashMap::new();
+    let mut cols = parse(input);
+    let mut col = 0;
+    let mut counters: FxHashMap<u64, u32> = FxHashMap::default();
+    // Simulate a batch of rounds, then count their shouts: keeping the serial simulation and the
+    // cache-missing hash map lookups in separate loops lets both run faster.
+    let mut batch = [0u64; 1024];
     let mut round = 0;
     loop {
-        let col = round % cols.len();
-        round += 1;
-        let first = cols[col].pop_front().unwrap();
-        let dst = (col + 1) % cols.len();
-        let ofs = (first - 1) as usize % (cols[dst].len() * 2);
-        let dst_len = cols[dst].len();
-        if ofs < dst_len {
-            cols[dst].insert(ofs, first);
-        } else {
-            cols[dst].insert(dst_len - (ofs - dst_len), first);
+        for code in batch.iter_mut() {
+            dance(&mut cols, &mut col);
+            *code = shout(&cols, 100);
         }
-        let code = cols.iter().fold(0i64, |acc, col| acc * 100 + col.front().unwrap());
-        match counters.get(&code) {
-            None => {
-                counters.insert(code, 1);
-            }
-            Some(&count) => {
-                if count == 2023 {
-                    return (round * code as usize).to_string();
-                }
-                counters.insert(code, count + 1);
+        for &code in &batch {
+            round += 1;
+            let count = counters.entry(code).or_insert(0);
+            *count += 1;
+            if *count == 2024 {
+                return (round * code).to_string();
             }
         }
     }
 }
 
 pub fn part3(input: &str) -> String {
-    let mut cols: Vec<VecDeque<i64>> = Vec::new();
-    for line in input.lines() {
-        let nums = line.split(' ').filter_map(|s| s.parse::<i64>().ok()).collect::<Vec<i64>>();
-        for (i, &num) in nums.iter().enumerate() {
-            if cols.len() <= i {
-                cols.push(VecDeque::new());
-            }
-            cols[i].push_back(num);
-        }
-    }
-    let mut round = 0;
+    let mut cols = parse(input);
+    let mut col = 0;
     let mut max_code = 0;
     let mut wait = 1000;
     while wait > 0 {
-        let col = round % cols.len();
-        round += 1;
-        let first = cols[col].pop_front().unwrap();
-        let dst = (col + 1) % cols.len();
-        let ofs = (first - 1) as usize % (cols[dst].len() * 2);
-        let dst_len = cols[dst].len();
-        if ofs < dst_len {
-            cols[dst].insert(ofs, first);
-        } else {
-            cols[dst].insert(dst_len - (ofs - dst_len), first);
-        }
-        let code = cols.iter().fold(0i64, |acc, col| acc * 10000 + col.front().unwrap());
+        dance(&mut cols, &mut col);
+        let code = shout(&cols, 10000);
         if code > max_code {
             max_code = code;
             wait = 1000;
